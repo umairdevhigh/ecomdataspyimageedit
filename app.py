@@ -13,6 +13,23 @@ import zipfile
 import os
 from PIL import Image, ImageEnhance, ImageOps
 
+# ---------- PAGE CONFIG ----------
+st.set_page_config(page_title="Image Edit + CSV Generator", page_icon="🖌️")
+
+# ---------- INITIALIZE SESSION STATE (Data persist karne ke liye) ----------
+if 'is_ready' not in st.session_state:
+    st.session_state.is_ready = False
+if 'csv_data' not in st.session_state:
+    st.session_state.csv_data = None
+if 'zip_data' not in st.session_state:
+    st.session_state.zip_data = None
+if 'df_preview' not in st.session_state:
+    st.session_state.df_preview = None
+if 'failed_urls' not in st.session_state:
+    st.session_state.failed_urls = []
+if 'total_rows' not in st.session_state:
+    st.session_state.total_rows = 0
+
 # ---------- ROTATING USER-AGENTS ----------
 USER_AGENTS = [
     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
@@ -81,42 +98,30 @@ def format_category(soup, default="Imported Products"):
             if categories: return ' > '.join(categories)
     return default
 
-# ---------- IMAGE EDITOR (Unique banane ke liye) ----------
+# ---------- IMAGE EDITOR ----------
 def edit_image(img_data, filename):
     try:
         img = Image.open(BytesIO(img_data))
-        # 1. Convert to RGB (just in case it's RGBA/PNG)
         if img.mode in ('RGBA', 'LA', 'P'):
             img = img.convert('RGB')
-        
-        # 2. Horizontal Flip (Mirror)
         img = img.transpose(Image.FLIP_LEFT_RIGHT)
-        
-        # 3. Slight Rotation (±2.5 degrees)
         angle = random.uniform(-2.5, 2.5)
         img = img.rotate(angle, expand=False, fillcolor=(255, 255, 255))
-        
-        # 4. Brightness/Contrast tweak (±8%)
         enhancer = ImageEnhance.Brightness(img)
         img = enhancer.enhance(random.uniform(0.92, 1.08))
         enhancer = ImageEnhance.Contrast(img)
         img = enhancer.enhance(random.uniform(0.95, 1.05))
-        
-        # 5. Add a 3px white border (changes dimensions slightly)
         img = ImageOps.expand(img, border=3, fill='white')
         
-        # 6. Save as JPG with Quality 85 (small size & format change)
         new_filename = f"edited_{int(time.time())}_{random.randint(1000,9999)}_{filename.split('/')[-1].split('?')[0]}"
         if not new_filename.lower().endswith(('.jpg', '.jpeg')):
             new_filename = new_filename.rsplit('.', 1)[0] + '.jpg'
         
-        # Save to BytesIO
         buffer = BytesIO()
         img.save(buffer, format='JPEG', quality=85, optimize=True)
         buffer.seek(0)
         return new_filename, buffer.getvalue()
     except Exception as e:
-        # Agar edit fail ho toh original daal do (but rename kar do)
         try:
             new_filename = f"edited_{int(time.time())}_{random.randint(1000,9999)}_{filename.split('/')[-1].split('?')[0]}"
             if not new_filename.lower().endswith(('.jpg', '.jpeg', '.png')):
@@ -125,7 +130,7 @@ def edit_image(img_data, filename):
         except:
             return None, None
 
-# ---------- SCRAPER (Returns rows + image_files dict) ----------
+# ---------- SCRAPER ----------
 def scrape_product(url, session, edit_images):
     headers = {'User-Agent': random.choice(USER_AGENTS)}
     for attempt in range(2):
@@ -141,7 +146,6 @@ def scrape_product(url, session, edit_images):
     base_url = f"{resp.url.split('/')[0]}//{resp.url.split('/')[2]}"
     product_data = {}
     
-    # Parse JSON-LD
     for script in soup.find_all('script', type='application/ld+json'):
         try:
             data = json.loads(script.string)
@@ -154,13 +158,11 @@ def scrape_product(url, session, edit_images):
                 break
         except: pass
 
-    # Title
     title = product_data.get('name') or (soup.find('h1').get_text(strip=True) if soup.find('h1') else None)
     if not title:
         og_title = soup.find('meta', property='og:title')
         title = og_title.get('content') if og_title else url.split('/')[-1].replace('-', ' ')
 
-    # Description (only for rewriting title)
     desc = product_data.get('description') or ''
     if not desc:
         desc_meta = soup.find('meta', attrs={'name': 'description'})
@@ -169,7 +171,6 @@ def scrape_product(url, session, edit_images):
         og_desc = soup.find('meta', property='og:description')
         desc = og_desc.get('content') if og_desc else title
 
-    # Price
     price = safe_get_offer_price(product_data.get('offers'))
     if not price:
         price_span = soup.find('span', {'class': re.compile(r'price|amount|sale-price')})
@@ -178,7 +179,6 @@ def scrape_product(url, session, edit_images):
             price = match.group() if match else '0'
         else: price = '0'
 
-    # SKU & Regenerate
     sku_raw = safe_get_sku(product_data.get('sku'))
     if not sku_raw:
         sku_span = soup.find('span', {'class': re.compile(r'sku|id|model')})
@@ -186,7 +186,7 @@ def scrape_product(url, session, edit_images):
     rand_suffix = ''.join(random.choices('ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789', k=4))
     new_parent_sku = f"CUSTOM-{rand_suffix}-{sku_raw}"
 
-    # ---------- IMAGES (Fetch + Edit) ----------
+    # Images
     raw_image_urls = []
     if product_data.get('image'):
         if isinstance(product_data['image'], list): raw_image_urls.extend(product_data['image'])
@@ -200,10 +200,9 @@ def scrape_product(url, session, edit_images):
             if full_url not in raw_image_urls: raw_image_urls.append(full_url)
     raw_image_urls = [im for im in raw_image_urls if im.startswith('http')][:10]
 
-    # Process Images
-    image_files = {}  # {original_url: new_filename}
-    processed_image_urls = []  # for CSV
-    image_zip_data = {}  # {filename: binary_data} for ZIP
+    image_files = {}
+    processed_image_urls = []
+    image_zip_data = {}
 
     if edit_images:
         for img_url in raw_image_urls:
@@ -214,26 +213,22 @@ def scrape_product(url, session, edit_images):
                     if new_name and edited_data:
                         image_files[img_url] = new_name
                         image_zip_data[new_name] = edited_data
-                        processed_image_urls.append(new_name)  # local name for CSV
+                        processed_image_urls.append(new_name)
             except:
-                # Fallback: raw url hi daal do
                 processed_image_urls.append(img_url)
     else:
         processed_image_urls = raw_image_urls
 
     images_str = ', '.join(processed_image_urls) if processed_image_urls else ''
 
-    # Category
     category_str = format_category(soup, "Imported Products")
     if not category_str or category_str == "Imported Products":
         cat_from_ld = product_data.get('category', '')
         if cat_from_ld: category_str = cat_from_ld
 
-    # Rewrite Title
     rewriter = SmartRewriter()
     new_title = rewriter.rewrite(title)
 
-    # ---------- CHECK VARIABLE PRODUCT ----------
     offers = product_data.get('offers')
     variations_data = []
     if isinstance(offers, list) and len(offers) > 1:
@@ -250,7 +245,6 @@ def scrape_product(url, session, edit_images):
                     'image': offer.get('image', '')
                 })
 
-    # Parent Row
     if variations_data:
         product_type = 'variable'
         parent_price = ''
@@ -258,7 +252,6 @@ def scrape_product(url, session, edit_images):
         product_type = 'simple'
         parent_price = price
 
-    # Attributes Collection
     attr_names = set(); attr_values_map = {}
     if variations_data:
         for var in variations_data:
@@ -275,23 +268,16 @@ def scrape_product(url, session, edit_images):
             attr_cols[f'Attribute {i+1} value(s)'] = ' | '.join(vals)
 
     parent_row = {
-        'Type': product_type,
-        'SKU': new_parent_sku,
-        'Name': new_title,
-        'Published': 1,
-        'Regular price': parent_price,
-        'Categories': category_str,
-        'Images': images_str,
+        'Type': product_type, 'SKU': new_parent_sku, 'Name': new_title, 'Published': 1,
+        'Regular price': parent_price, 'Categories': category_str, 'Images': images_str,
         'Attribute 1 name': attr_cols['Attribute 1 name'],
         'Attribute 1 value(s)': attr_cols['Attribute 1 value(s)'],
         'Attribute 2 name': attr_cols['Attribute 2 name'],
         'Attribute 2 value(s)': attr_cols['Attribute 2 value(s)'],
-        'Parent': '',
-        'Stock': 10 if product_type == 'simple' else ''
+        'Parent': '', 'Stock': 10 if product_type == 'simple' else ''
     }
     results = [parent_row]
 
-    # Variation Rows
     if variations_data:
         for var in variations_data:
             var_sku = f"{new_parent_sku}-{var.get('sku', random.randint(100,999))}"
@@ -302,7 +288,6 @@ def scrape_product(url, session, edit_images):
             attr2_val = list(var_attrs.values())[1] if len(var_attrs) > 1 else ''
             attr2_name = list(var_attrs.keys())[1] if len(var_attrs) > 1 else ''
 
-            # Variation Image (if specific)
             var_img = var.get('image', '')
             var_images_str = ''
             if edit_images and var_img:
@@ -316,43 +301,32 @@ def scrape_product(url, session, edit_images):
                 except:
                     var_images_str = var_img
             if not var_images_str:
-                var_images_str = images_str  # fallback to parent images
+                var_images_str = images_str
 
             variation_row = {
-                'Type': 'variation',
-                'SKU': var_sku,
+                'Type': 'variation', 'SKU': var_sku,
                 'Name': f"{new_title} - {attr1_val} {attr2_val}".strip() if (attr1_val or attr2_val) else f"{new_title} - Var",
-                'Published': 1,
-                'Regular price': var_price,
-                'Categories': category_str,
-                'Images': var_images_str,
-                'Attribute 1 name': attr1_name,
-                'Attribute 1 value(s)': attr1_val,
-                'Attribute 2 name': attr2_name,
-                'Attribute 2 value(s)': attr2_val,
-                'Parent': new_parent_sku,
-                'Stock': 10
+                'Published': 1, 'Regular price': var_price, 'Categories': category_str,
+                'Images': var_images_str, 'Attribute 1 name': attr1_name,
+                'Attribute 1 value(s)': attr1_val, 'Attribute 2 name': attr2_name,
+                'Attribute 2 value(s)': attr2_val, 'Parent': new_parent_sku, 'Stock': 10
             }
             results.append(variation_row)
 
     return results, image_zip_data, None
 
-# ---------- STREAMLIT UI ----------
-st.set_page_config(page_title="Image Edit + CSV Generator", page_icon="🖌️")
+# ---------- UI STARTS HERE ----------
 st.title("🖌️ Duplicate-Proof CSV + Image ZIP Generator")
-st.markdown("**Scrape | Rewrite | Edit Images | WooCommerce Ready**")
+st.markdown("**Scrape | Rewrite | Edit Images | WooCommerce Ready (13 Columns)**")
 
-with st.expander("📌 How to use (Image Duplication Bypass)", expanded=True):
+with st.expander("📌 Important - Buttons ab gayab nahi honge!", expanded=True):
     st.write("""
-    1. URLs paste karo.
-    2. **Image Editing ON** karo (Mirror, Rotate, Brightness, Border).
-    3. **Base URL** daal do (jaise `https://tumhariwebsite.com/wp-content/uploads/`).
-       - Agar daaloge toh CSV mein images column mein `Base URL + filename` aayega.
-       - Agar nahi daaloge toh CSV mein sirf filename aayega (aage manually FTP se upload karke replace karna).
-    4. **Scrape** karo. End mein **CSV** aur **Images ZIP** dono download ho jaayenge.
+    - **CSV aur ZIP dono ek saath dikhenge**, chahe pehle koi bhi download karo.
+    - **Session State** use ho rahi hai, isliye data memory mein rehta hai.
+    - Naya batch run karne ke liye **'🔄 Reset & New Batch'** button dabao.
     """)
 
-urls_input = st.text_area("🔗 Paste URLs (Max 20 per batch recommended):", height=120)
+urls_input = st.text_area("🔗 Paste Product URLs (Max 20-30 per batch):", height=120)
 
 col1, col2 = st.columns(2)
 with col1:
@@ -367,6 +341,7 @@ EXACT_COLUMNS = [
     'Parent', 'Stock'
 ]
 
+# ---------- GENERATE BUTTON ----------
 if st.button("🚀 Generate CSV + ZIP", type="primary"):
     if not urls_input.strip():
         st.error("❌ Kuch URLs toh daalo!")
@@ -375,28 +350,34 @@ if st.button("🚀 Generate CSV + ZIP", type="primary"):
         if not urls:
             st.error("❌ Valid URL nahi mili.")
         else:
+            # Reset previous session data before new run
+            st.session_state.is_ready = False
+            st.session_state.csv_data = None
+            st.session_state.zip_data = None
+            st.session_state.df_preview = None
+            st.session_state.failed_urls = []
+            st.session_state.total_rows = 0
+
             progress_bar = st.progress(0)
             status_text = st.empty()
             all_rows = []
             failed_urls = []
-            all_image_data = {}  # global image dict for ZIP
+            all_image_data = {}
             
             session = requests.Session()
             total_urls = len(urls)
             
             for idx, url in enumerate(urls):
-                status_text.text(f"⏳ Processing {idx+1}/{total_urls} (Image Editing: {'ON' if edit_images else 'OFF'})...")
+                status_text.text(f"⏳ Processing {idx+1}/{total_urls}...")
                 results, image_data, error = scrape_product(url, session, edit_images)
-                
                 if results:
                     all_rows.extend(results)
                     if image_data:
                         all_image_data.update(image_data)
                 else:
                     failed_urls.append(url)
-                
                 progress_bar.progress((idx + 1) / total_urls)
-                time.sleep(random.uniform(4.0, 6.5))  # Safety delay
+                time.sleep(random.uniform(4.0, 6.5))
             
             progress_bar.progress(1.0)
             status_text.text("✅ Processing Complete!")
@@ -405,37 +386,32 @@ if st.button("🚀 Generate CSV + ZIP", type="primary"):
                 st.error("❌ Koi product scrape nahi ho saka.")
                 st.stop()
             
-            # --- Apply Base URL to Images in CSV ---
+            # Apply Base URL to Images in CSV
             for row in all_rows:
                 img_col = row.get('Images', '')
                 if img_col and base_url:
-                    # Agar image column mein comma separated list hai
                     imgs = img_col.split(', ')
                     new_imgs = []
                     for img in imgs:
-                        # Agar img mein 'http' nahi hai toh base_url laga do
                         if not img.startswith('http'):
                             new_imgs.append(f"{base_url.rstrip('/')}/{img.lstrip('/')}")
                         else:
                             new_imgs.append(img)
                     row['Images'] = ', '.join(new_imgs)
                 elif img_col and not base_url:
-                    # Base URL nahi hai toh as it is rakh do (local filenames)
                     pass
 
-            # --- Create DataFrame ---
             df = pd.DataFrame(all_rows, columns=EXACT_COLUMNS)
             for col in EXACT_COLUMNS:
                 if col not in df.columns: df[col] = ''
             df = df[EXACT_COLUMNS]
             
-            # --- CSV Download ---
             csv_buffer = StringIO()
             df.to_csv(csv_buffer, index=False, encoding='utf-8-sig')
             csv_data = csv_buffer.getvalue()
             
-            # --- ZIP Download (if images exist) ---
             zip_buffer = BytesIO()
+            has_zip = False
             if all_image_data:
                 with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
                     for filename, binary_data in all_image_data.items():
@@ -444,36 +420,63 @@ if st.button("🚀 Generate CSV + ZIP", type="primary"):
                 zip_ready = zip_buffer.getvalue()
                 has_zip = True
             else:
-                has_zip = False
+                zip_ready = None
 
-            # --- Display Success ---
-            st.success(f"🎯 {len(all_rows)} rows generated! {len(failed_urls)} failed.")
-            if failed_urls:
-                st.warning(f"⚠️ {len(failed_urls)} URLs failed. Inhe alag se try karo.")
+            # --- SAVE TO SESSION STATE ---
+            st.session_state.csv_data = csv_data
+            st.session_state.zip_data = zip_ready
+            st.session_state.df_preview = df
+            st.session_state.failed_urls = failed_urls
+            st.session_state.total_rows = len(all_rows)
+            st.session_state.is_ready = True
+            st.session_state.has_zip = has_zip
             
-            col_a, col_b = st.columns(2)
-            with col_a:
-                st.download_button(
-                    label="⬇️ Download CSV",
-                    data=csv_data,
-                    file_name=f"leather_store_{int(time.time())}.csv",
-                    mime="text/csv",
-                    use_container_width=True
-                )
-            
-            with col_b:
-                if has_zip:
-                    st.download_button(
-                        label=f"⬇️ Download Images ZIP ({len(all_image_data)} files)",
-                        data=zip_ready,
-                        file_name=f"edited_images_{int(time.time())}.zip",
-                        mime="application/zip",
-                        use_container_width=True
-                    )
-                else:
-                    st.info("No images processed for ZIP.")
-            
-            st.subheader("📊 Preview (First 5 rows)")
-            st.dataframe(df.head(5))
+            st.rerun()  # Force rerun to show persistent buttons
 
-st.caption("🖌️ Cunning Mode: Mirror + Rotate + Brightness + Border | Auto SKU & Rewrite | ZIP for images")
+# ---------- DISPLAY PERSISTENT DOWNLOAD BUTTONS (Ye kabhi gayab nahi honge) ----------
+if st.session_state.is_ready:
+    st.success(f"🎯 {st.session_state.total_rows} rows generated! {len(st.session_state.failed_urls)} failed.")
+    if st.session_state.failed_urls:
+        with st.expander(f"⚠️ Show {len(st.session_state.failed_urls)} Failed URLs"):
+            st.write('\n'.join(st.session_state.failed_urls))
+    
+    st.subheader("📊 Preview (First 5 rows)")
+    st.dataframe(st.session_state.df_preview.head(5))
+    
+    col_a, col_b, col_c = st.columns([2, 2, 1])
+    with col_a:
+        st.download_button(
+            label="⬇️ Download CSV (WooCommerce Ready)",
+            data=st.session_state.csv_data,
+            file_name=f"leather_store_{int(time.time())}.csv",
+            mime="text/csv",
+            use_container_width=True,
+            key="csv_download"  # Unique key to avoid conflicts
+        )
+    
+    with col_b:
+        if st.session_state.has_zip and st.session_state.zip_data:
+            st.download_button(
+                label=f"⬇️ Download Images ZIP ({len(st.session_state.zip_data) // 1024} KB approx)",
+                data=st.session_state.zip_data,
+                file_name=f"edited_images_{int(time.time())}.zip",
+                mime="application/zip",
+                use_container_width=True,
+                key="zip_download"
+            )
+        else:
+            st.info("No edited images generated for ZIP.")
+    
+    with col_c:
+        # Reset button to clear state and start fresh
+        if st.button("🔄 Reset & New Batch", use_container_width=True):
+            st.session_state.is_ready = False
+            st.session_state.csv_data = None
+            st.session_state.zip_data = None
+            st.session_state.df_preview = None
+            st.session_state.failed_urls = []
+            st.session_state.total_rows = 0
+            st.session_state.has_zip = False
+            st.rerun()
+
+st.caption("🖌️ Persistent Download Buttons | Session State Active | CSV + ZIP dono saath rahenge!")
