@@ -1,0 +1,12 @@
+streamlit
+requests
+beautifulsoup4
+lxml
+pandas
+Pillow
+
+# Optional — only needed for "Solid Color / Gradient" background changer.
+# If you don't install this, that one feature silently skips and the tool
+# still works fine for everything else (scraping, CSV export, AI backgrounds, etc).
+rembg
+onnxruntime
