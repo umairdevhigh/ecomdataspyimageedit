@@ -50,9 +50,9 @@ if 'all_urls' not in st.session_state:
 # PAGE CONFIG
 # ============================================================
 st.set_page_config(page_title="Universal E-commerce Extractor + Branding Studio", page_icon="🛒")
-st.title("🛒 UNIVERSAL E-COMMERCE CSV + BRANDING STUDIO V4.1")
-st.markdown("**Works with WooCommerce, Shopify, Magento, custom stores & most other platforms** — fetches full gallery images (data-src, lazy-src, zoom, srcset) and writes a ready-to-import Shopify or WooCommerce CSV (your choice, below).")
-st.caption("⚠️ Note: sites built as a heavy JavaScript app (e.g. many Wix stores, some custom React storefronts) may only expose meta-tag/JSON-LD data to a static scraper — full gallery scraping works best on WooCommerce, Shopify, Magento, and most server-rendered custom sites.")
+st.title("🛒 UNIVERSAL E-COMMERCE CSV + BRANDING STUDIO V4.2")
+st.markdown("**Works with WooCommerce, Shopify, Magento, custom stores & most other platforms** — fetches full gallery images (data-src, lazy-src, zoom, srcset) and writes a ready-to-import Shopify or WooCommerce CSV.")
+st.caption("⚠️ Note: sites built as a heavy JavaScript app may only expose meta-tag/JSON-LD data — full gallery scraping works best on WooCommerce, Shopify, Magento, and most server-rendered custom sites.")
 
 st.components.v1.html("""
 <script>
@@ -100,7 +100,7 @@ with st.expander("⚙️ Configure Image Branding", expanded=True):
         st.checkbox("✨ Brightness/Contrast Tweak", key="enable_enhance", value=True)
 
 # ============================================================
-# BACKGROUND CHANGER (new)
+# BACKGROUND CHANGER (UPGRADED: Gemini 3.1 Flash)
 # ============================================================
 st.subheader("🖼️ Background Changer (Optional)")
 with st.expander("⚙️ Configure Background", expanded=False):
@@ -109,8 +109,7 @@ with st.expander("⚙️ Configure Background", expanded=False):
         ["Original (No Change)", "Solid Color / Gradient (Free, Local)", "AI Generated Scene (Gemini)"],
         key="bg_mode_choice",
         help="Solid/Gradient = local background removal + fill, no API, no cost. "
-             "AI Generated = sends the photo to Google's Gemini 2.5 Flash Image ('Nano Banana') "
-             "model with your own free API key to generate a realistic lifestyle scene."
+             "AI Generated = sends the photo to Google's Gemini Flash Image model."
     )
     bg_choice = st.session_state.get("bg_mode_choice", "Original (No Change)")
 
@@ -130,7 +129,14 @@ with st.expander("⚙️ Configure Background", expanded=False):
         st.text_input(
             "Gemini API Key (aapki apni, free — Google AI Studio se)",
             type="password", key="bg_gemini_api_key",
-            help="https://aistudio.google.com se 30 second mein free key milti hai. Ye key sirf is session mein use hoti hai, kahin save nahi hoti."
+            help="https://aistudio.google.com se free key milti hai."
+        )
+        # 🔥 FIX: Default model updated to gemini-3.1-flash-image as per user request
+        st.text_input(
+            "Model Name (optional, default: gemini-3.1-flash-image)",
+            key="bg_model_name",
+            value="gemini-3.1-flash-image",
+            help="Default: gemini-3.1-flash-image. Agar 404 aaye toh Google AI Studio mein available model name daalein."
         )
         st.radio("Scene", ["Preset se choose karo", "Apna prompt likho"], key="bg_ai_prompt_mode", horizontal=True)
         if st.session_state.get("bg_ai_prompt_mode", "Preset se choose karo") == "Preset se choose karo":
@@ -150,8 +156,7 @@ with st.expander("⚙️ Configure Background", expanded=False):
             st.text_area("Apna background scene describe karein", key="bg_ai_custom_prompt",
                          placeholder="e.g. Beachside boardwalk at sunset, warm golden light, editorial photography")
         st.caption(
-            "⚠️ **Honest note:** Gemini 2.5 Flash Image ('Nano Banana') ki free tier hai, lekin "
-            "**'unlimited' nahi** — Google daily/per-minute limits laga raha hai jo waqt ke sath change hoti rehti hain. "
+            "⚠️ **Honest note:** Google daily/per-minute limits laga raha hai jo waqt ke sath change hoti rehti hain. "
             "Bulk products chalate waqt limit hit ho sakti hai — us surat mein wo image original hi rahegi (tool crash nahi hoga). "
             "Free key yahan se milti hai: https://aistudio.google.com/apikey"
         )
@@ -163,23 +168,21 @@ with st.expander("⚙️ Configure Product Descriptions", expanded=True):
     with col_ai1:
         st.text_area("🏪 Store / Niche Context (optional)", key="ai_store_context",
                       placeholder="e.g. Premium leather jackets store, target audience: men & women 20-45, focus on quality + comfort",
-                      height=100,
-                      help="Optional — mention your niche and it'll be woven into the generated wording.")
+                      height=100)
     with col_ai2:
-        st.slider("🖼️ Max Gallery Images per Product", 3, 20, 10, key="max_gallery_images",
-                   help="Ab sirf 5 tak limited nahi — gallery, zoom aur lazy-load images sab combine karke ye limit tak fetch honge.")
-    st.caption("💡 Descriptions, SEO title aur meta description sab locally generate hote hain — koi API key ya internet-based AI call nahi lagti. Har product ke liye templates aur phrase-pools se unique, SEO-optimized, sales-focused copy banti hai.")
+        st.slider("🖼️ Max Gallery Images per Product", 3, 20, 10, key="max_gallery_images")
+    st.caption("💡 Descriptions, SEO title aur meta description sab locally generate hote hain — koi API key ya internet-based AI call nahi lagti.")
 
     st.markdown("**✅ Kya khud generate karna hai? (Tick = naya likha jaye · Untick = original site se utha kar CSV mein dala jaye)**")
     col_tg1, col_tg2, col_tg3, col_tg4 = st.columns(4)
     with col_tg1:
-        st.checkbox("Meta Title", key="gen_meta_title", value=True, help="Tick = naya SEO title generate hoga. Untick = source site ke <title>/meta title tag se liya jayega.")
+        st.checkbox("Meta Title", key="gen_meta_title", value=True)
     with col_tg2:
-        st.checkbox("Meta Description", key="gen_meta_desc", value=True, help="Tick = naya meta description generate hoga. Untick = source site ke meta description tag se liya jayega.")
+        st.checkbox("Meta Description", key="gen_meta_desc", value=True)
     with col_tg3:
-        st.checkbox("Short Description", key="gen_short_desc", value=True, help="Tick = nayi short description generate hogi. Untick = source site ke short-description block se scrape hoga.")
+        st.checkbox("Short Description", key="gen_short_desc", value=True)
     with col_tg4:
-        st.checkbox("Long Description", key="gen_long_desc", value=True, help="Tick = nayi long description generate hogi. Untick = source site ki original description as-is use hogi.")
+        st.checkbox("Long Description", key="gen_long_desc", value=True)
 
 # ============================================================
 # MAIN INPUTS
@@ -191,8 +194,7 @@ export_format = st.radio(
     "📦 Export CSV Format",
     ["🛍️ Shopify CSV", "🛒 WooCommerce CSV"],
     key="export_format",
-    horizontal=True,
-    help="Shopify = 'Import products' feature ke liye ready. WooCommerce = WooCommerce CSV Importer / WP All Import default format ke liye ready."
+    horizontal=True
 )
 
 col_inp1, col_inp2 = st.columns([3, 1])
@@ -253,6 +255,7 @@ def get_branding_config():
         'bg_solid_color': st.session_state.get("bg_solid_color", "#F2EFE9"),
         'bg_solid_style': 'gradient' if st.session_state.get("bg_solid_style", "Soft Studio Gradient") == "Soft Studio Gradient" else 'flat',
         'bg_gemini_api_key': st.session_state.get("bg_gemini_api_key", "").strip(),
+        'bg_model_name': st.session_state.get("bg_model_name", "gemini-3.1-flash-image").strip(),
         'bg_ai_prompt': (
             st.session_state.get("bg_ai_custom_prompt", "").strip()
             if st.session_state.get("bg_ai_prompt_mode") == "Apna prompt likho"
@@ -320,7 +323,6 @@ class SmartRewriter:
             "Still deciding? Our team is always happy to help you pick the right fit before you order.",
         ]
 
-    # ---------- shared helpers ----------
     def _clean_text(self, text):
         text = re.sub(r'<[^<]+?>', ' ', text or '')
         text = re.sub(r'\s+', ' ', text).strip()
@@ -364,13 +366,11 @@ class SmartRewriter:
                 used += 1
         return text
 
-    # ---------- backward-compatible simple rewrite (kept for internal reuse) ----------
     def enhance_description(self, text, title=""):
         if not text or len(text) < 5:
             return f"Discover the perfect blend of style and durability with this premium {title}. Crafted for the modern individual, it offers unmatched comfort and timeless appeal."
         return self._synonym_pass(text)
 
-    # ---------- main entry point: fully local, detailed, SEO-ready content ----------
     def generate_seo_content(self, title, raw_desc, category=None, store_context=None):
         clean_source = self._clean_text(raw_desc)
         source_is_useful = len(clean_source) > 15 and clean_source.lower() != title.lower()
@@ -438,7 +438,6 @@ def safe_get_sku(sku_data):
     return ''
 
 def safe_get_brand(brand_data):
-    """JSON-LD 'brand' can be a plain string or a schema.org Brand/Organization object."""
     if isinstance(brand_data, str):
         return brand_data
     if isinstance(brand_data, dict):
@@ -448,16 +447,10 @@ def safe_get_brand(brand_data):
     return ''
 
 def format_category(soup, product_data=None, title=None, default="Uncategorized"):
-    """Covers WooCommerce (.woocommerce-breadcrumb), Magento (.breadcrumbs),
-    schema.org BreadcrumbList, and generic nav[aria-label=breadcrumb]/ol.breadcrumb markup.
-    Works for ANY product type (electronics, cosmetics, furniture, jackets, etc.) — pulls the
-    real category from the site, and never returns the product's own title as its category."""
     product_data = product_data or {}
     title_norm = re.sub(r'[^a-z0-9]', '', (title or '').lower())
 
     def _is_product_title(name):
-        """True if a breadcrumb/category label is really just the product's own title
-        (the last crumb on most sites), so we don't misuse it as the category."""
         if not title_norm or not name:
             return False
         name_norm = re.sub(r'[^a-z0-9]', '', str(name).lower())
@@ -466,13 +459,10 @@ def format_category(soup, product_data=None, title=None, default="Uncategorized"
         return name_norm == title_norm or (len(name_norm) > 6 and name_norm in title_norm)
 
     def _is_home(name):
-        """True for generic 'Home' breadcrumb crumbs, which are never a real category."""
         if not name:
             return False
         return str(name).strip().lower() in ('home', 'homepage', 'home page', 'main', 'shop', 'store')
 
-    # 0. Direct schema.org 'category' property on the Product object itself — most reliable
-    #    when present, and completely product-type agnostic.
     cat_field = product_data.get('category')
     if isinstance(cat_field, str) and cat_field.strip() and not _is_product_title(cat_field):
         return cat_field.strip()
@@ -481,7 +471,6 @@ def format_category(soup, product_data=None, title=None, default="Uncategorized"
         if cat_names:
             return ' > '.join(cat_names)
 
-    # 1. schema.org BreadcrumbList (works across almost every modern platform incl. Wix/Magento)
     for script in soup.find_all('script', type='application/ld+json'):
         try:
             data = json.loads(script.string)
@@ -492,27 +481,22 @@ def format_category(soup, product_data=None, title=None, default="Uncategorized"
                     names = [it.get('name') or (it.get('item', {}).get('name') if isinstance(it.get('item'), dict) else None)
                              for it in items]
                     names = [n for n in names if n]
-                    # Drop a trailing crumb that's just the product page itself
                     if names and _is_product_title(names[-1]):
                         names = names[:-1]
-                    # Drop generic "Home"/"Shop" crumbs wherever they appear — never a real category
                     names = [n for n in names if not _is_home(n)]
                     if names:
                         return ' > '.join(names)
         except Exception:
             pass
 
-    # 2. Common HTML breadcrumb containers (ul/nav/ol, class or aria-label based)
     bread = (soup.find(['ul', 'nav', 'ol'], {'class': re.compile(r'breadcrumb', re.I)})
              or soup.find(attrs={'aria-label': re.compile(r'breadcrumb', re.I)}))
     if bread:
         links = bread.find_all('a')
         if links:
             categories = [link.get_text(strip=True) for link in links]
-            # Some themes also link the current/product crumb — strip it if so
             if categories and _is_product_title(categories[-1]):
                 categories = categories[:-1]
-            # Drop generic "Home"/"Shop" crumbs wherever they appear — never a real category
             categories = [c for c in categories if not _is_home(c)]
             if categories:
                 return ' > '.join(categories)
@@ -525,8 +509,6 @@ def generate_handle(title):
     return handle
 
 def extract_title(soup, product_data, url):
-    """Platform-agnostic title extraction: JSON-LD -> itemprop -> h1 (WooCommerce/Magento
-    both use h1.product_title / .page-title) -> og:title -> <title> -> URL slug."""
     title = product_data.get('name')
     if not title:
         itemprop = soup.find(attrs={'itemprop': 'name'})
@@ -544,9 +526,6 @@ def extract_title(soup, product_data, url):
     return title.strip()
 
 def extract_raw_description(soup, product_data):
-    """Platform-agnostic description text used as source facts for the AI/rewriter.
-    Covers WooCommerce short description, Magento product description, generic
-    itemprop=description, and standard meta tags."""
     raw_desc = product_data.get('description') or ''
     if not raw_desc:
         itemprop = soup.find(attrs={'itemprop': 'description'})
@@ -570,8 +549,6 @@ def extract_raw_description(soup, product_data):
     return raw_desc
 
 def extract_site_meta_title(soup, fallback_title):
-    """Site's own <title>/meta title tag — used when 'Meta Title' toggle is unticked,
-    so we pull the real value instead of generating one."""
     meta = soup.find('meta', attrs={'name': 'title'})
     if meta and meta.get('content'):
         return meta.get('content').strip()
@@ -585,7 +562,6 @@ def extract_site_meta_title(soup, fallback_title):
     return fallback_title
 
 def extract_site_meta_description(soup):
-    """Site's own meta description tag — used when 'Meta Description' toggle is unticked."""
     meta = soup.find('meta', attrs={'name': 'description'})
     if meta and meta.get('content'):
         return meta.get('content').strip()
@@ -595,8 +571,6 @@ def extract_site_meta_description(soup):
     return ''
 
 def extract_site_short_description(soup, fallback_raw_desc):
-    """Site's own short-description block (WooCommerce short-description div, product
-    summary, etc.) — used when 'Short Description' toggle is unticked."""
     node = soup.find(['div', 'p'], {'class': re.compile(r'short.?description|product[-_]?summary', re.I)})
     if node:
         text = node.get_text(' ', strip=True)
@@ -612,7 +586,6 @@ def extract_price(soup, product_data):
     price = safe_get_offer_price(product_data.get('offers'))
     if price:
         return price
-    # itemprop / meta based price (schema.org + Open Graph product price, common across platforms)
     price_tag = (soup.find(attrs={'itemprop': 'price'})
                  or soup.find('meta', property='product:price:amount')
                  or soup.find('meta', attrs={'property': 'og:price:amount'}))
@@ -621,8 +594,6 @@ def extract_price(soup, product_data):
         match = re.search(r'[\d,]+\.?\d*', val or '')
         if match:
             return match.group()
-    # Class-based fallback: covers WooCommerce (.price .amount), Magento
-    # (.price-wrapper, .special-price), and most custom theme naming conventions.
     price_span = soup.find(['span', 'div', 'ins'], {'class': re.compile(
         r'price|amount|sale-price|regular-price|product-price|current-price', re.I)})
     if price_span:
@@ -638,7 +609,6 @@ def extract_sku(soup, product_data):
     itemprop = soup.find(attrs={'itemprop': 'sku'})
     if itemprop:
         return itemprop.get_text(strip=True) or itemprop.get('content', '')
-    # WooCommerce: <span class="sku">..</span>, Magento: [data-product-sku], generic .sku/.model/.id
     sku_span = (soup.find(attrs={'data-product-sku': True})
                 or soup.find(['span', 'div'], {'class': re.compile(r'\bsku\b|model|product-id', re.I)}))
     if sku_span:
@@ -662,11 +632,9 @@ def extract_vendor(soup, product_data, default="Imported Vendor"):
     return default
 
 # ============================================================
-# GALLERY IMAGE HELPERS (fixes "gallery images missing")
+# GALLERY IMAGE HELPERS
 # ============================================================
 def strip_size_suffix(url):
-    """Convert thumbnail/resized URLs (e.g. product_300x300.jpg, product_600x.jpg@2x)
-    into the full-resolution original where possible."""
     try:
         clean = url.split('?')[0]
         query = url[len(clean):]
@@ -677,8 +645,6 @@ def strip_size_suffix(url):
         return url
 
 def try_get_shopify_json_images(url, session, headers):
-    """Most themes expose the full product JSON (with every gallery image, no cap)
-    at <product-url>.json — this is the most reliable source when available."""
     urls = []
     try:
         clean_url = url.split('?')[0].rstrip('/')
@@ -699,11 +665,6 @@ def try_get_shopify_json_images(url, session, headers):
     return urls
 
 def extract_gallery_images_html(soup, base_url_domain):
-    """Pull every candidate image from <img>/<source>/<a> tags, checking lazy-load,
-    zoom, and srcset attributes (not just src) so gallery thumbnails aren't missed.
-    Prioritizes known gallery containers (WooCommerce, Magento/Fotorama, generic
-    slider/swiper markup) before falling back to a full-page scan, so unrelated
-    'related products' or header/footer images don't crowd out the real gallery."""
     skip_words = ['logo', 'icon-', 'sprite', 'placeholder', 'payment', 'visa',
                   'mastercard', 'paypal', 'apple-pay', 'google-pay', 'flag-',
                   'loading.gif', 'spinner', 'avatar', 'favicon']
@@ -738,9 +699,6 @@ def extract_gallery_images_html(soup, base_url_domain):
                     found.append(full)
         return found
 
-    # 1. Known gallery containers first — WooCommerce (.woocommerce-product-gallery,
-    # .flex-control-thumbs), Magento (.fotorama, .gallery-placeholder, [data-gallery-role]),
-    # and generic slider/swiper/carousel markup used by most custom themes.
     gallery_selectors = [
         {'class': re.compile(r'woocommerce-product-gallery', re.I)},
         {'class': re.compile(r'flex-control-thumbs', re.I)},
@@ -756,7 +714,6 @@ def extract_gallery_images_html(soup, base_url_domain):
         for container in containers:
             gallery_urls.extend(collect_from(container.find_all(['img', 'source', 'a'])))
 
-    # 2. Full-page fallback so nothing is missed on themes with non-standard markup
     page_urls = collect_from(soup.find_all(['img', 'source', 'a']))
 
     combined = []
@@ -766,9 +723,6 @@ def extract_gallery_images_html(soup, base_url_domain):
     return combined
 
 def extract_gallery_images_from_scripts(soup, base_url_domain, exclude_urls=None):
-    """Last-resort fallback: many Magento themes and JS-rendered custom/Wix-style
-    storefronts embed the gallery as a JSON blob inside a <script> tag rather than
-    plain <img> tags. Scan script text for image-looking URLs as a safety net."""
     exclude_urls = exclude_urls or set()
     found = []
     media_hint = re.compile(r'(wp-content/uploads|media/catalog/product|cdn|assets|products|images)', re.I)
@@ -791,10 +745,6 @@ def extract_gallery_images_from_scripts(soup, base_url_domain, exclude_urls=None
     return found
 
 def collect_gallery_images(url, soup, base_url_domain, session, headers, product_data, max_images):
-    """Combine JSON-LD, Shopify's product.json endpoint (if present), og:image,
-    known gallery-container HTML, a full-page HTML fallback, and (if still short
-    on images) a script-embedded-JSON fallback for Magento/JS-heavy sites.
-    De-duplicated and capped at the user-configured max (default 10, up to 20)."""
     combined = []
 
     if product_data.get('image'):
@@ -821,7 +771,6 @@ def collect_gallery_images(url, soup, base_url_domain, session, headers, product
         if len(final) >= max_images:
             break
 
-    # Only reach for the noisier script-tag fallback if the above genuinely came up short
     if len(final) < 2:
         for img in extract_gallery_images_from_scripts(soup, base_url_domain, exclude_urls=seen):
             key = img.split('?')[0]
@@ -834,15 +783,9 @@ def collect_gallery_images(url, soup, base_url_domain, session, headers, product
     return final
 
 # ============================================================
-# IMAGE EDITOR
-# ============================================================
-# ============================================================
-# BACKGROUND CHANGER HELPERS
+# BACKGROUND CHANGER HELPERS (FIXED: Gemini 3.1 Flash)
 # ============================================================
 def remove_background_local(img):
-    """Cuts the product out from its background using rembg — a local ML model.
-    The model downloads once, then runs fully offline: no API key, no per-image cost.
-    Returns None (silently) if rembg isn't installed, so the pipeline never crashes."""
     try:
         from rembg import remove
     except ImportError:
@@ -856,8 +799,6 @@ def remove_background_local(img):
         return None
 
 def apply_solid_background(cutout_rgba, hex_color, style='gradient'):
-    """Composites a background-removed product cutout onto a flat color or a soft
-    studio-style radial gradient built from that same color."""
     hex_color = (hex_color or '#F2EFE9').lstrip('#')
     try:
         r, g, b = tuple(int(hex_color[i:i+2], 16) for i in (0, 2, 4))
@@ -878,11 +819,7 @@ def apply_solid_background(cutout_rgba, hex_color, style='gradient'):
     canvas.paste(cutout_rgba, (0, 0), cutout_rgba)
     return canvas.convert('RGB')
 
-def generate_ai_background(img, prompt, api_key):
-    """Sends the product photo + a scene description to Google's Gemini 2.5 Flash Image
-    ('Nano Banana') model, which redraws the background while keeping the product itself
-    unchanged. Requires the user's OWN free API key from Google AI Studio — no key is
-    bundled with this tool, and usage is subject to Google's free-tier rate limits."""
+def generate_ai_background(img, prompt, api_key, model_name="gemini-3.1-flash-image"):
     try:
         buf = BytesIO()
         img.convert('RGB').save(buf, format='JPEG', quality=90)
@@ -893,9 +830,9 @@ def generate_ai_background(img, prompt, api_key):
             "detail — completely unchanged. Match realistic lighting, shadow and perspective so the "
             "product looks naturally placed in the new scene. Professional e-commerce product photography."
         )
-        # ✅ FIX: Correct model name
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent"
         resp = requests.post(
-            "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp-image-generation:generateContent",
+            url,
             headers={"x-goog-api-key": api_key, "Content-Type": "application/json"},
             json={"contents": [{"parts": [
                 {"text": full_prompt},
@@ -904,7 +841,7 @@ def generate_ai_background(img, prompt, api_key):
             timeout=60
         )
         if resp.status_code != 200:
-            return None, f"Gemini API error {resp.status_code}"
+            return None, f"Gemini API error {resp.status_code} - {resp.text[:200]}"
         data = resp.json()
         parts = data.get('candidates', [{}])[0].get('content', {}).get('parts', [])
         for part in parts:
@@ -916,9 +853,6 @@ def generate_ai_background(img, prompt, api_key):
         return None, str(e)
 
 def apply_background_change(final_img, config, bg_status_placeholder=None):
-    """Routes to the chosen background mode. Always fails safe — if anything goes wrong
-    (missing rembg, bad/missing API key, rate limit, network error), the original image
-    is kept as-is rather than breaking the pipeline."""
     bg_mode = config.get('bg_mode', 'none')
     if bg_mode == 'solid':
         cutout = remove_background_local(final_img)
@@ -927,11 +861,11 @@ def apply_background_change(final_img, config, bg_status_placeholder=None):
     elif bg_mode == 'ai':
         api_key = config.get('bg_gemini_api_key', '')
         if api_key:
-            new_img, err = generate_ai_background(final_img, config.get('bg_ai_prompt', ''), api_key)
+            model_name = config.get('bg_model_name', 'gemini-3.1-flash-image')
+            new_img, err = generate_ai_background(final_img, config.get('bg_ai_prompt', ''), api_key, model_name)
             if new_img is not None:
                 return new_img
             else:
-                # ✅ FIX: Display error to user
                 if bg_status_placeholder:
                     bg_status_placeholder.warning(f"⚠️ AI Background failed: {err if err else 'Check API key or prompt.'} Using original background.")
     return final_img
@@ -1080,7 +1014,7 @@ def edit_image(img_data, filename, config, bg_status_placeholder=None):
             return None, None
 
 # ============================================================
-# SHOPIFY SCRAPER (FIXED: Lazy Load Images + Full Gallery)
+# SHOPIFY SCRAPER (FULL GALLERY)
 # ============================================================
 def scrape_product(url, session, config, bg_status_placeholder=None):
     headers = {'User-Agent': random.choice(USER_AGENTS)}
@@ -1109,11 +1043,9 @@ def scrape_product(url, session, config, bg_status_placeholder=None):
             data = json.loads(script.string)
         except Exception:
             continue
-        # Plain single-object JSON-LD (Shopify, Magento, most custom themes)
         if isinstance(data, dict) and is_product_type(data.get('@type')):
             product_data = data
             break
-        # WooCommerce (Yoast/RankMath) commonly wraps everything in "@graph": [...]
         graph = data.get('@graph') if isinstance(data, dict) else None
         if isinstance(graph, list):
             for entry in graph:
@@ -1122,7 +1054,6 @@ def scrape_product(url, session, config, bg_status_placeholder=None):
                     break
         if product_data:
             break
-        # Some sites emit a top-level list of JSON-LD objects instead of @graph
         if isinstance(data, list):
             for entry in data:
                 if isinstance(entry, dict) and is_product_type(entry.get('@type')):
@@ -1133,7 +1064,6 @@ def scrape_product(url, session, config, bg_status_placeholder=None):
 
     title = extract_title(soup, product_data, url)
     raw_desc = extract_raw_description(soup, product_data) or title
-
     category_str_early = format_category(soup, product_data, title)
 
     want_meta_title = config.get('gen_meta_title', True)
@@ -1149,7 +1079,6 @@ def scrape_product(url, session, config, bg_status_placeholder=None):
     else:
         seo_content = {'description_html': '', 'seo_title': '', 'seo_description': '', 'short_description': ''}
 
-    # Tick = locally generate fresh copy. Untick = use the real value scraped from the site.
     if want_long_desc:
         long_desc = seo_content['description_html']
     else:
@@ -1161,21 +1090,15 @@ def scrape_product(url, session, config, bg_status_placeholder=None):
     gen_short_desc = seo_content['short_description'] if want_short_desc else extract_site_short_description(soup, raw_desc)
 
     price = extract_price(soup, product_data)
-
     sku_raw = extract_sku(soup, product_data)
     rand_suffix = ''.join(random.choices('ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789', k=4))
     parent_sku = f"CUSTOM-{rand_suffix}-{sku_raw}"
 
-    # ============================================================
-    # 🔥 FIX: FULL GALLERY (JSON endpoint + lazy-load + zoom + srcset,
-    # no hard 5-image cap — capped only by the user's slider)
-    # ============================================================
     max_images = config.get('max_gallery_images', 10)
     raw_image_urls = collect_gallery_images(
         url, soup, base_url_domain, session, headers, product_data, max_images
     )
 
-    # Process images (edit or keep original)
     image_zip_data = {}
     processed_image_urls = []
     
@@ -1184,7 +1107,6 @@ def scrape_product(url, session, config, bg_status_placeholder=None):
             try:
                 img_resp = session.get(img_url, timeout=15)
                 if img_resp.status_code == 200:
-                    # Pass the status placeholder for error display
                     new_name, edited_data = edit_image(img_resp.content, img_url, config, bg_status_placeholder)
                     if new_name and edited_data:
                         image_zip_data[new_name] = edited_data
@@ -1198,17 +1120,14 @@ def scrape_product(url, session, config, bg_status_placeholder=None):
     else:
         processed_image_urls = raw_image_urls
     
-    # Shopify formatting: pehli image main row mein, baqi additional rows mein
     main_image = processed_image_urls[0] if processed_image_urls else ''
     additional_images = processed_image_urls[1:] if len(processed_image_urls) > 1 else []
 
     category_str = category_str_early
     vendor = extract_vendor(soup, product_data)
-    
     tags = "Imported"
     handle = generate_handle(title)
     
-    # Extract variants
     offers = product_data.get('offers')
     variations_data = []
     if isinstance(offers, list) and len(offers) > 1:
@@ -1235,73 +1154,28 @@ def scrape_product(url, session, config, bg_status_placeholder=None):
         if len(attr_names) > 1: opt2_name = attr_names[1]
         if len(attr_names) > 2: opt3_name = attr_names[2]
 
-    # ============================================================
-    # PARENT ROW (with main image)
-    # ============================================================
     parent_row = {
-        'Title': title,
-        'URL handle': handle,
-        'Description': long_desc,
-        'Vendor': vendor,
-        'Product category': category_str,
-        'Type': category_str.split('>')[-1].strip() if category_str and category_str != 'Uncategorized' else '',
-        'Tags': tags,
-        'Published on online store': 'TRUE',
-        'Status': 'active',
-        'SKU': '',
-        'Barcode': '',
-        'Option1 name': opt1_name,
-        'Option1 value': '',
-        'Option1 Linked To': 'Option1 name' if opt1_name else '',
-        'Option2 name': opt2_name,
-        'Option2 value': '',
-        'Option2 Linked To': 'Option2 name' if opt2_name else '',
-        'Option3 name': opt3_name,
-        'Option3 value': '',
-        'Option3 Linked To': 'Option3 name' if opt3_name else '',
-        'Price': '',
-        'Compare-at price': '',
-        'Cost per item': '',
-        'Charge tax': 'TRUE',
-        'Tax code': '',
-        'Unit price total measure': '',
-        'Unit price total measure unit': '',
-        'Unit price base measure': '',
-        'Unit price base measure unit': '',
-        'Inventory tracker': '',
-        'Inventory quantity': '',
-        'Continue selling when out of stock': '',
-        'Weight value (grams)': '',
-        'Weight unit for display': '',
-        'Requires shipping': 'TRUE',
-        'Fulfillment service': 'manual',
-        'Product image URL': main_image,
-        'Image position': '1',
-        'Image alt text': title,
-        'Variant image URL': '',
-        'Gift card': 'FALSE',
-        'SEO title': gen_seo_title,
-        'SEO description': gen_seo_description,
+        'Title': title, 'URL handle': handle, 'Description': long_desc, 'Vendor': vendor,
+        'Product category': category_str, 'Type': category_str.split('>')[-1].strip() if category_str and category_str != 'Uncategorized' else '',
+        'Tags': tags, 'Published on online store': 'TRUE', 'Status': 'active', 'SKU': '',
+        'Barcode': '', 'Option1 name': opt1_name, 'Option1 value': '', 'Option1 Linked To': 'Option1 name' if opt1_name else '',
+        'Option2 name': opt2_name, 'Option2 value': '', 'Option2 Linked To': 'Option2 name' if opt2_name else '',
+        'Option3 name': opt3_name, 'Option3 value': '', 'Option3 Linked To': 'Option3 name' if opt3_name else '',
+        'Price': '', 'Compare-at price': '', 'Cost per item': '', 'Charge tax': 'TRUE', 'Tax code': '',
+        'Unit price total measure': '', 'Unit price total measure unit': '', 'Unit price base measure': '', 'Unit price base measure unit': '',
+        'Inventory tracker': '', 'Inventory quantity': '', 'Continue selling when out of stock': '',
+        'Weight value (grams)': '', 'Weight unit for display': '', 'Requires shipping': 'TRUE',
+        'Fulfillment service': 'manual', 'Product image URL': main_image, 'Image position': '1',
+        'Image alt text': title, 'Variant image URL': '', 'Gift card': 'FALSE',
+        'SEO title': gen_seo_title, 'SEO description': gen_seo_description,
         'Short description': gen_short_desc,
-        'Color (product.metafields.shopify.color-pattern)': '',
-        'Google Shopping / Google product category': category_str,
-        'Google Shopping / Gender': '',
-        'Google Shopping / Age group': '',
-        'Google Shopping / Manufacturer part number (MPN)': '',
-        'Google Shopping / Ad group name': '',
-        'Google Shopping / Ads labels': '',
-        'Google Shopping / Condition': '',
-        'Google Shopping / Custom product': '',
-        'Google Shopping / Custom label 0': '',
-        'Google Shopping / Custom label 1': '',
-        'Google Shopping / Custom label 2': '',
-        'Google Shopping / Custom label 3': '',
-        'Google Shopping / Custom label 4': ''
+        'Color (product.metafields.shopify.color-pattern)': '', 'Google Shopping / Google product category': category_str,
+        'Google Shopping / Gender': '', 'Google Shopping / Age group': '', 'Google Shopping / Manufacturer part number (MPN)': '',
+        'Google Shopping / Ad group name': '', 'Google Shopping / Ads labels': '', 'Google Shopping / Condition': '',
+        'Google Shopping / Custom product': '', 'Google Shopping / Custom label 0': '', 'Google Shopping / Custom label 1': '',
+        'Google Shopping / Custom label 2': '', 'Google Shopping / Custom label 3': '', 'Google Shopping / Custom label 4': ''
     }
 
-    # ============================================================
-    # ADDITIONAL IMAGE ROWS (Shopify guidelines ke mutabiq)
-    # ============================================================
     image_rows = []
     for idx, img_url in enumerate(additional_images, start=2):
         img_row = {col: '' for col in SHOPIFY_COLUMNS}
@@ -1310,9 +1184,6 @@ def scrape_product(url, session, config, bg_status_placeholder=None):
         img_row['Image position'] = str(idx)
         image_rows.append(img_row)
 
-    # ============================================================
-    # VARIANT ROWS
-    # ============================================================
     variant_rows = []
     if variations_data:
         for idx, var in enumerate(variations_data):
@@ -1323,7 +1194,6 @@ def scrape_product(url, session, config, bg_status_placeholder=None):
             attr2_val = list(var_attrs.values())[1] if len(var_attrs) > 1 else ''
             attr3_val = list(var_attrs.values())[2] if len(var_attrs) > 2 else ''
 
-            # Variant image
             var_img = var.get('image', '')
             var_img_url = ''
             if config.get('edit_images', False) and var_img:
@@ -1340,67 +1210,29 @@ def scrape_product(url, session, config, bg_status_placeholder=None):
                 var_img_url = ''
 
             variant_row = {
-                'Title': '',
-                'URL handle': handle,
-                'Description': '',
-                'Vendor': '',
-                'Product category': '',
-                'Type': '',
-                'Tags': '',
-                'Published on online store': 'TRUE',
-                'Status': 'active',
-                'SKU': var_sku,
-                'Barcode': random.randint(1000000000, 9999999999),
-                'Option1 name': '',
-                'Option1 value': attr1_val,
-                'Option1 Linked To': '',
-                'Option2 name': '',
-                'Option2 value': attr2_val,
-                'Option2 Linked To': '',
-                'Option3 name': '',
-                'Option3 value': attr3_val,
-                'Option3 Linked To': '',
-                'Price': var_price,
-                'Compare-at price': '',
-                'Cost per item': '',
-                'Charge tax': 'TRUE',
-                'Tax code': '',
-                'Unit price total measure': '',
-                'Unit price total measure unit': '',
-                'Unit price base measure': '',
-                'Unit price base measure unit': '',
-                'Inventory tracker': 'shopify',
-                'Inventory quantity': 10,
-                'Continue selling when out of stock': 'DENY',
-                'Weight value (grams)': 150,
-                'Weight unit for display': 'g',
-                'Requires shipping': 'TRUE',
-                'Fulfillment service': 'manual',
-                'Product image URL': '',
-                'Image position': '',
-                'Image alt text': '',
-                'Variant image URL': var_img_url,
-                'Gift card': 'FALSE',
-                'SEO title': '',
-                'SEO description': '',
+                'Title': '', 'URL handle': handle, 'Description': '', 'Vendor': '', 'Product category': '',
+                'Type': '', 'Tags': '', 'Published on online store': 'TRUE', 'Status': 'active',
+                'SKU': var_sku, 'Barcode': random.randint(1000000000, 9999999999),
+                'Option1 name': '', 'Option1 value': attr1_val, 'Option1 Linked To': '',
+                'Option2 name': '', 'Option2 value': attr2_val, 'Option2 Linked To': '',
+                'Option3 name': '', 'Option3 value': attr3_val, 'Option3 Linked To': '',
+                'Price': var_price, 'Compare-at price': '', 'Cost per item': '', 'Charge tax': 'TRUE', 'Tax code': '',
+                'Unit price total measure': '', 'Unit price total measure unit': '', 'Unit price base measure': '', 'Unit price base measure unit': '',
+                'Inventory tracker': 'shopify', 'Inventory quantity': 10, 'Continue selling when out of stock': 'DENY',
+                'Weight value (grams)': 150, 'Weight unit for display': 'g', 'Requires shipping': 'TRUE',
+                'Fulfillment service': 'manual', 'Product image URL': '', 'Image position': '',
+                'Image alt text': '', 'Variant image URL': var_img_url, 'Gift card': 'FALSE',
+                'SEO title': '', 'SEO description': '',
                 'Color (product.metafields.shopify.color-pattern)': attr2_val if opt2_name.lower() == 'color' else attr1_val if opt1_name.lower() == 'color' else '',
-                'Google Shopping / Google product category': '',
-                'Google Shopping / Gender': '',
-                'Google Shopping / Age group': '',
-                'Google Shopping / Manufacturer part number (MPN)': f'MPN-{var_sku}',
-                'Google Shopping / Ad group name': '',
-                'Google Shopping / Ads labels': '',
-                'Google Shopping / Condition': 'New',
-                'Google Shopping / Custom product': '',
-                'Google Shopping / Custom label 0': '',
-                'Google Shopping / Custom label 1': '',
-                'Google Shopping / Custom label 2': '',
-                'Google Shopping / Custom label 3': '',
-                'Google Shopping / Custom label 4': ''
+                'Google Shopping / Google product category': '', 'Google Shopping / Gender': '',
+                'Google Shopping / Age group': '', 'Google Shopping / Manufacturer part number (MPN)': f'MPN-{var_sku}',
+                'Google Shopping / Ad group name': '', 'Google Shopping / Ads labels': '',
+                'Google Shopping / Condition': 'New', 'Google Shopping / Custom product': '',
+                'Google Shopping / Custom label 0': '', 'Google Shopping / Custom label 1': '',
+                'Google Shopping / Custom label 2': '', 'Google Shopping / Custom label 3': '', 'Google Shopping / Custom label 4': ''
             }
             variant_rows.append(variant_row)
     
-    # Agar simple product hai (no variants)
     if not variations_data:
         parent_row['SKU'] = parent_sku
         parent_row['Price'] = price
@@ -1412,9 +1244,7 @@ def scrape_product(url, session, config, bg_status_placeholder=None):
         parent_row['Fulfillment service'] = 'manual'
         parent_row['Barcode'] = random.randint(1000000000, 9999999999)
 
-    # Combine all rows: Parent -> Image Rows -> Variant Rows
     final_rows = [parent_row] + image_rows + variant_rows
-    
     return final_rows, image_zip_data, None
 
 USER_AGENTS = [
@@ -1423,9 +1253,6 @@ USER_AGENTS = [
     'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/126.0',
 ]
 
-# ============================================================
-# SHOPIFY COLUMNS
-# ============================================================
 SHOPIFY_COLUMNS = [
     'Title', 'URL handle', 'Description', 'Vendor', 'Product category', 'Type', 'Tags',
     'Published on online store', 'Status', 'SKU', 'Barcode', 'Option1 name',
@@ -1448,10 +1275,6 @@ SHOPIFY_COLUMNS = [
     'Google Shopping / Custom label 4'
 ]
 
-# ============================================================
-# WOOCOMMERCE COLUMNS (default WooCommerce Product CSV Importer /
-# WP All Import compatible format, incl. Yoast SEO meta title & description)
-# ============================================================
 WOOCOMMERCE_COLUMNS = [
     'ID', 'Type', 'SKU', 'Name', 'Published', 'Is featured?', 'Visibility in catalog',
     'Short description', 'Description', 'Date sale price starts', 'Date sale price ends',
@@ -1468,8 +1291,6 @@ WOOCOMMERCE_COLUMNS = [
 ]
 
 def group_rows_by_product(all_rows):
-    """Shopify-style flat row list has one 'parent' row (non-empty Title) followed by
-    its image rows and variant rows. Split that flat list back into per-product groups."""
     groups = []
     current = []
     for row in all_rows:
@@ -1485,8 +1306,6 @@ def group_rows_by_product(all_rows):
     return groups
 
 def build_woocommerce_rows(product_rows, config):
-    """Convert one product's Shopify-style row group (parent + image rows + variant rows)
-    into WooCommerce CSV rows (simple product, or variable product + variations)."""
     if not product_rows:
         return []
 
@@ -1646,7 +1465,6 @@ if st.button("🚀 Generate Shopify CSV + ZIP (Batch Mode)", type="primary") or 
             else:
                 st.session_state.is_processing = False
 
-                # --- Apply Base URL to Product image and Variant image columns first ---
                 if base_url:
                     for row in st.session_state.all_final_rows:
                         for col in ['Product image URL', 'Variant image URL']:
@@ -1661,7 +1479,6 @@ if st.button("🚀 Generate Shopify CSV + ZIP (Batch Mode)", type="primary") or 
                                         new_imgs.append(img)
                                 row[col] = ', '.join(new_imgs)
 
-                # --- Generate Final CSV (Shopify or WooCommerce, based on toggle) ---
                 config = get_branding_config()
                 if config.get('export_format') == 'woocommerce':
                     product_groups = group_rows_by_product(st.session_state.all_final_rows)
@@ -1784,4 +1601,4 @@ if st.session_state.is_ready:
                         st.session_state[key] = None
             st.rerun()
 
-st.caption("🛒 V4.1 | AI Background Fixed | Full Gallery | Batch Mode | 1000 MB ZIP Limit")
+st.caption("🛒 V4.2 | Gemini 3.1 Flash Default | Full Gallery | Batch Mode")
