@@ -50,7 +50,7 @@ if 'all_urls' not in st.session_state:
 # PAGE CONFIG
 # ============================================================
 st.set_page_config(page_title="Universal E-commerce Extractor + Branding Studio", page_icon="🛒")
-st.title("🛒 UNIVERSAL E-COMMERCE CSV + BRANDING STUDIO V4.0")
+st.title("🛒 UNIVERSAL E-COMMERCE CSV + BRANDING STUDIO V4.1")
 st.markdown("**Works with WooCommerce, Shopify, Magento, custom stores & most other platforms** — fetches full gallery images (data-src, lazy-src, zoom, srcset) and writes a ready-to-import Shopify or WooCommerce CSV (your choice, below).")
 st.caption("⚠️ Note: sites built as a heavy JavaScript app (e.g. many Wix stores, some custom React storefronts) may only expose meta-tag/JSON-LD data to a static scraper — full gallery scraping works best on WooCommerce, Shopify, Magento, and most server-rendered custom sites.")
 
@@ -893,8 +893,9 @@ def generate_ai_background(img, prompt, api_key):
             "detail — completely unchanged. Match realistic lighting, shadow and perspective so the "
             "product looks naturally placed in the new scene. Professional e-commerce product photography."
         )
+        # ✅ FIX: Correct model name
         resp = requests.post(
-            "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent",
+            "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp-image-generation:generateContent",
             headers={"x-goog-api-key": api_key, "Content-Type": "application/json"},
             json={"contents": [{"parts": [
                 {"text": full_prompt},
@@ -914,7 +915,7 @@ def generate_ai_background(img, prompt, api_key):
     except Exception as e:
         return None, str(e)
 
-def apply_background_change(final_img, config):
+def apply_background_change(final_img, config, bg_status_placeholder=None):
     """Routes to the chosen background mode. Always fails safe — if anything goes wrong
     (missing rembg, bad/missing API key, rate limit, network error), the original image
     is kept as-is rather than breaking the pipeline."""
@@ -929,9 +930,13 @@ def apply_background_change(final_img, config):
             new_img, err = generate_ai_background(final_img, config.get('bg_ai_prompt', ''), api_key)
             if new_img is not None:
                 return new_img
+            else:
+                # ✅ FIX: Display error to user
+                if bg_status_placeholder:
+                    bg_status_placeholder.warning(f"⚠️ AI Background failed: {err if err else 'Check API key or prompt.'} Using original background.")
     return final_img
 
-def edit_image(img_data, filename, config):
+def edit_image(img_data, filename, config, bg_status_placeholder=None):
     try:
         img = Image.open(BytesIO(img_data))
         if img.mode in ('RGBA', 'LA', 'P'):
@@ -949,7 +954,7 @@ def edit_image(img_data, filename, config):
             final_img = enhancer.enhance(random.uniform(0.95, 1.05))
 
         if config.get('bg_mode', 'none') != 'none':
-            final_img = apply_background_change(final_img, config)
+            final_img = apply_background_change(final_img, config, bg_status_placeholder)
             if final_img.mode != 'RGB':
                 final_img = final_img.convert('RGB')
             width, height = final_img.size
@@ -1075,9 +1080,9 @@ def edit_image(img_data, filename, config):
             return None, None
 
 # ============================================================
-# SHOPIFY SCRAPER (FIXED: Lazy Load Images + 5 Images Limit)
+# SHOPIFY SCRAPER (FIXED: Lazy Load Images + Full Gallery)
 # ============================================================
-def scrape_product(url, session, config):
+def scrape_product(url, session, config, bg_status_placeholder=None):
     headers = {'User-Agent': random.choice(USER_AGENTS)}
     for attempt in range(2):
         try:
@@ -1175,16 +1180,19 @@ def scrape_product(url, session, config):
     processed_image_urls = []
     
     if config.get('edit_images', False):
-        for img_url in raw_image_urls:
+        for idx, img_url in enumerate(raw_image_urls):
             try:
                 img_resp = session.get(img_url, timeout=15)
                 if img_resp.status_code == 200:
-                    new_name, edited_data = edit_image(img_resp.content, img_url, config)
+                    # Pass the status placeholder for error display
+                    new_name, edited_data = edit_image(img_resp.content, img_url, config, bg_status_placeholder)
                     if new_name and edited_data:
                         image_zip_data[new_name] = edited_data
                         processed_image_urls.append(new_name)
                     else:
                         processed_image_urls.append(img_url)
+                else:
+                    processed_image_urls.append(img_url)
             except:
                 processed_image_urls.append(img_url)
     else:
@@ -1322,7 +1330,7 @@ def scrape_product(url, session, config):
                 try:
                     img_resp = session.get(var_img, timeout=15)
                     if img_resp.status_code == 200:
-                        new_name, edited_data = edit_image(img_resp.content, var_img, config)
+                        new_name, edited_data = edit_image(img_resp.content, var_img, config, bg_status_placeholder)
                         if new_name and edited_data:
                             image_zip_data[new_name] = edited_data
                             var_img_url = new_name
@@ -1570,12 +1578,12 @@ def build_woocommerce_rows(product_rows, config):
 # ============================================================
 # PROCESS BATCH FUNCTION
 # ============================================================
-def process_batch(urls, config, session):
+def process_batch(urls, config, session, bg_status_placeholder=None):
     all_rows = []
     image_data = {}
     failed = []
     for url in urls:
-        results, img_data, error = scrape_product(url, session, config)
+        results, img_data, error = scrape_product(url, session, config, bg_status_placeholder)
         if results:
             all_rows.extend(results)
             if img_data:
@@ -1615,13 +1623,14 @@ if st.button("🚀 Generate Shopify CSV + ZIP (Batch Mode)", type="primary") or 
         if start < total:
             status_text = st.empty()
             progress_bar = st.progress(0)
+            bg_status_placeholder = st.empty()
             
             status_text.info(f"⏳ Processing Batch {batch_idx+1}/{(total // BATCH_SIZE) + 1} ({start+1} to {end} of {total})...")
             
             config = get_branding_config()
             session = requests.Session()
 
-            batch_rows, batch_images, batch_failed = process_batch(current_batch, config, session)
+            batch_rows, batch_images, batch_failed = process_batch(current_batch, config, session, bg_status_placeholder)
             
             st.session_state.all_final_rows.extend(batch_rows)
             st.session_state.all_image_data.update(batch_images)
@@ -1775,4 +1784,4 @@ if st.session_state.is_ready:
                         st.session_state[key] = None
             st.rerun()
 
-st.caption("🛒 Shopify V3.4 FINAL | Lazy Load Images Fixed | Batch Mode | 1000 MB ZIP Limit")
+st.caption("🛒 V4.1 | AI Background Fixed | Full Gallery | Batch Mode | 1000 MB ZIP Limit")
