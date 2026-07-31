@@ -50,9 +50,8 @@ if 'all_urls' not in st.session_state:
 # PAGE CONFIG
 # ============================================================
 st.set_page_config(page_title="Universal E-commerce Extractor + Branding Studio", page_icon="🛒")
-st.title("🛒 UNIVERSAL E-COMMERCE CSV + BRANDING STUDIO V4.2")
-st.markdown("**Works with WooCommerce, Shopify, Magento, custom stores & most other platforms** — fetches full gallery images (data-src, lazy-src, zoom, srcset) and writes a ready-to-import Shopify or WooCommerce CSV.")
-st.caption("⚠️ Note: sites built as a heavy JavaScript app may only expose meta-tag/JSON-LD data — full gallery scraping works best on WooCommerce, Shopify, Magento, and most server-rendered custom sites.")
+st.title("🛒 UNIVERSAL E-COMMERCE CSV + BRANDING STUDIO V4.3")
+st.markdown("**Gemini 3.0 Pro Image (Official Nano Banana) set as default**")
 
 st.components.v1.html("""
 <script>
@@ -100,7 +99,7 @@ with st.expander("⚙️ Configure Image Branding", expanded=True):
         st.checkbox("✨ Brightness/Contrast Tweak", key="enable_enhance", value=True)
 
 # ============================================================
-# BACKGROUND CHANGER (UPGRADED: Gemini 3.1 Flash)
+# BACKGROUND CHANGER (UPGRADED: Gemini 3.0 Pro Image)
 # ============================================================
 st.subheader("🖼️ Background Changer (Optional)")
 with st.expander("⚙️ Configure Background", expanded=False):
@@ -109,7 +108,7 @@ with st.expander("⚙️ Configure Background", expanded=False):
         ["Original (No Change)", "Solid Color / Gradient (Free, Local)", "AI Generated Scene (Gemini)"],
         key="bg_mode_choice",
         help="Solid/Gradient = local background removal + fill, no API, no cost. "
-             "AI Generated = sends the photo to Google's Gemini Flash Image model."
+             "AI Generated = sends the photo to Google's Gemini 3.0 Pro Image (Nano Banana) model."
     )
     bg_choice = st.session_state.get("bg_mode_choice", "Original (No Change)")
 
@@ -120,9 +119,7 @@ with st.expander("⚙️ Configure Background", expanded=False):
         with col_bg2:
             st.radio("Style", ["Flat Color", "Soft Studio Gradient"], key="bg_solid_style", horizontal=True)
         st.caption(
-            "⚠️ Ye feature `rembg` package par depend karta hai (local background-removal model, "
-            "ek dafa download hoke phir fully offline chalta hai, koi API/cost nahi). "
-            "Agar `pip install rembg` installed nahi hai, ye step silently skip ho jayega aur original image use hogi."
+            "⚠️ Ye feature `rembg` package par depend karta hai (local background-removal model)."
         )
 
     elif bg_choice == "AI Generated Scene (Gemini)":
@@ -131,12 +128,12 @@ with st.expander("⚙️ Configure Background", expanded=False):
             type="password", key="bg_gemini_api_key",
             help="https://aistudio.google.com se free key milti hai."
         )
-        # 🔥 FIX: Default model updated to gemini-3.1-flash-image as per user request
+        # 🔥 FIX: Official Image Model = gemini-3.0-pro-image
         st.text_input(
-            "Model Name (optional, default: gemini-3.1-flash-image)",
+            "Model Name (default: gemini-3.0-pro-image)",
             key="bg_model_name",
-            value="gemini-3.1-flash-image",
-            help="Default: gemini-3.1-flash-image. Agar 404 aaye toh Google AI Studio mein available model name daalein."
+            value="gemini-3.0-pro-image",
+            help="Official Nano Banana model. Agar 429 aaye toh wait karein."
         )
         st.radio("Scene", ["Preset se choose karo", "Apna prompt likho"], key="bg_ai_prompt_mode", horizontal=True)
         if st.session_state.get("bg_ai_prompt_mode", "Preset se choose karo") == "Preset se choose karo":
@@ -156,9 +153,8 @@ with st.expander("⚙️ Configure Background", expanded=False):
             st.text_area("Apna background scene describe karein", key="bg_ai_custom_prompt",
                          placeholder="e.g. Beachside boardwalk at sunset, warm golden light, editorial photography")
         st.caption(
-            "⚠️ **Honest note:** Google daily/per-minute limits laga raha hai jo waqt ke sath change hoti rehti hain. "
-            "Bulk products chalate waqt limit hit ho sakti hai — us surat mein wo image original hi rahegi (tool crash nahi hoga). "
-            "Free key yahan se milti hai: https://aistudio.google.com/apikey"
+            "⚠️ **Free tier limits:** 429 error aane par 15-30 min wait karein. "
+            "Paid plan enable karne se limits increase ho jati hain."
         )
 
 
@@ -171,7 +167,7 @@ with st.expander("⚙️ Configure Product Descriptions", expanded=True):
                       height=100)
     with col_ai2:
         st.slider("🖼️ Max Gallery Images per Product", 3, 20, 10, key="max_gallery_images")
-    st.caption("💡 Descriptions, SEO title aur meta description sab locally generate hote hain — koi API key ya internet-based AI call nahi lagti.")
+    st.caption("💡 Descriptions, SEO title aur meta description sab locally generate hote hain — koi API key nahi lagti.")
 
     st.markdown("**✅ Kya khud generate karna hai? (Tick = naya likha jaye · Untick = original site se utha kar CSV mein dala jaye)**")
     col_tg1, col_tg2, col_tg3, col_tg4 = st.columns(4)
@@ -255,7 +251,7 @@ def get_branding_config():
         'bg_solid_color': st.session_state.get("bg_solid_color", "#F2EFE9"),
         'bg_solid_style': 'gradient' if st.session_state.get("bg_solid_style", "Soft Studio Gradient") == "Soft Studio Gradient" else 'flat',
         'bg_gemini_api_key': st.session_state.get("bg_gemini_api_key", "").strip(),
-        'bg_model_name': st.session_state.get("bg_model_name", "gemini-3.1-flash-image").strip(),
+        'bg_model_name': st.session_state.get("bg_model_name", "gemini-3.0-pro-image").strip(),
         'bg_ai_prompt': (
             st.session_state.get("bg_ai_custom_prompt", "").strip()
             if st.session_state.get("bg_ai_prompt_mode") == "Apna prompt likho"
@@ -783,7 +779,7 @@ def collect_gallery_images(url, soup, base_url_domain, session, headers, product
     return final
 
 # ============================================================
-# BACKGROUND CHANGER HELPERS (FIXED: Gemini 3.1 Flash)
+# BACKGROUND CHANGER HELPERS (FIXED: Gemini 3.0 Pro Image)
 # ============================================================
 def remove_background_local(img):
     try:
@@ -819,7 +815,7 @@ def apply_solid_background(cutout_rgba, hex_color, style='gradient'):
     canvas.paste(cutout_rgba, (0, 0), cutout_rgba)
     return canvas.convert('RGB')
 
-def generate_ai_background(img, prompt, api_key, model_name="gemini-3.1-flash-image"):
+def generate_ai_background(img, prompt, api_key, model_name="gemini-3.0-pro-image"):
     try:
         buf = BytesIO()
         img.convert('RGB').save(buf, format='JPEG', quality=90)
@@ -848,7 +844,7 @@ def generate_ai_background(img, prompt, api_key, model_name="gemini-3.1-flash-im
             inline = part.get('inlineData') or part.get('inline_data')
             if inline and inline.get('data'):
                 return Image.open(BytesIO(base64.b64decode(inline['data']))).convert('RGB'), None
-        return None, "No image returned (prompt may have been filtered)."
+        return None, "No image returned (prompt may have been filtered or model cannot generate images)."
     except Exception as e:
         return None, str(e)
 
@@ -861,13 +857,13 @@ def apply_background_change(final_img, config, bg_status_placeholder=None):
     elif bg_mode == 'ai':
         api_key = config.get('bg_gemini_api_key', '')
         if api_key:
-            model_name = config.get('bg_model_name', 'gemini-3.1-flash-image')
+            model_name = config.get('bg_model_name', 'gemini-3.0-pro-image')
             new_img, err = generate_ai_background(final_img, config.get('bg_ai_prompt', ''), api_key, model_name)
             if new_img is not None:
                 return new_img
             else:
                 if bg_status_placeholder:
-                    bg_status_placeholder.warning(f"⚠️ AI Background failed: {err if err else 'Check API key or prompt.'} Using original background.")
+                    bg_status_placeholder.warning(f"⚠️ AI Background failed: {err if err else 'Check API key or model.'} Using original background.")
     return final_img
 
 def edit_image(img_data, filename, config, bg_status_placeholder=None):
@@ -1601,4 +1597,4 @@ if st.session_state.is_ready:
                         st.session_state[key] = None
             st.rerun()
 
-st.caption("🛒 V4.2 | Gemini 3.1 Flash Default | Full Gallery | Batch Mode")
+st.caption("🛒 V4.3 | Gemini 3.0 Pro Image (Official) | Full Gallery | Batch Mode")
