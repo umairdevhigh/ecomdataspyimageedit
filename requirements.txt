@@ -4,5 +4,3 @@ beautifulsoup4
 lxml
 pandas
 Pillow
-rembg
-onnxruntime
