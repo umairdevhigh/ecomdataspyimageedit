@@ -48,9 +48,9 @@ if 'all_urls' not in st.session_state:
 # ============================================================
 # PAGE CONFIG
 # ============================================================
-st.set_page_config(page_title="Universal E-commerce Extractor V5.1", page_icon="🛒")
-st.title("🛒 UNIVERSAL E-COMMERCE EXTRACTOR V5.1 (AI DESCRIPTIONS)")
-st.markdown("**Gemini AI for Unique Descriptions | Smart Titles | Variations Fixed**")
+st.set_page_config(page_title="Universal E-commerce Extractor V5.2", page_icon="🛒")
+st.title("🛒 UNIVERSAL E-COMMERCE EXTRACTOR V5.2 (GEMINI 3.6 FIX)")
+st.markdown("**Gemini 3.6 Flash (Default) | Unique AI Descriptions | Smart Titles | Bullet Specs**")
 
 st.components.v1.html("""
 <script>
@@ -98,7 +98,7 @@ with st.expander("⚙️ Configure Image Branding", expanded=True):
         st.checkbox("✨ Brightness/Contrast Tweak", key="enable_enhance", value=True)
 
 # ============================================================
-# CONTENT SETTINGS (WITH GEMINI AI TOGGLE)
+# CONTENT SETTINGS (WITH GEMINI AI TOGGLE + 3.6 FLASH)
 # ============================================================
 st.subheader("📝 Content Settings")
 with st.expander("⚙️ Configure Product Content", expanded=True):
@@ -115,11 +115,11 @@ with st.expander("⚙️ Configure Product Content", expanded=True):
         st.slider("🖼️ Max Gallery Images per Product", 3, 20, 10, key="max_gallery_images")
     
     # ============================================================
-    # 🔥 NEW: GEMINI AI TOGGLE + API KEY
+    # 🔥 UPDATED: GEMINI 3.6 FLASH TOGGLE + API KEY
     # ============================================================
     st.markdown("---")
     st.checkbox("🚀 AI-Powered Descriptions (Google Gemini — Free Tier)", key="ai_enabled", value=False,
-                help="Enabled: Uses Gemini to write unique, SEO-optimized descriptions. Disabled: Uses local rewriter.")
+                help="Enabled: Uses Gemini 3.6 Flash to write unique, SEO-optimized descriptions. Disabled: Uses local rewriter.")
     
     if st.session_state.get("ai_enabled", False):
         col_key1, col_key2 = st.columns([2, 1])
@@ -127,11 +127,11 @@ with st.expander("⚙️ Configure Product Content", expanded=True):
             st.text_input("🔑 Gemini API Key", type="password", key="gemini_api_key",
                           help="Get your free key from https://aistudio.google.com/apikey")
         with col_key2:
-            st.selectbox("Model", ["gemini-1.5-flash", "gemini-1.5-pro"], key="gemini_model",
-                         help="Flash = faster, Pro = better quality (slightly slower)")
+            # 🔥 FIX: Gemini 3.6 Flash added as default & first option
+            st.selectbox("Model", ["gemini-3.6-flash", "gemini-1.5-flash", "gemini-1.5-pro"], key="gemini_model",
+                         help="3.6 Flash = latest, fastest, and most cost-effective.")
         st.caption("⚠️ Free tier has rate limits (60 requests/min). Tool will auto-fallback to local rewriter if AI fails.")
     else:
-        # Clear API key from session if toggle is off
         if 'gemini_api_key' in st.session_state:
             st.session_state.gemini_api_key = ""
 
@@ -198,11 +198,12 @@ def get_branding_config():
         # AI Settings
         'ai_enabled': st.session_state.get("ai_enabled", False),
         'gemini_api_key': st.session_state.get("gemini_api_key", "").strip(),
-        'gemini_model': st.session_state.get("gemini_model", "gemini-1.5-flash"),
+        # 🔥 FIX: Default model set to gemini-3.6-flash
+        'gemini_model': st.session_state.get("gemini_model", "gemini-3.6-flash"),
     }
 
 # ============================================================
-# SMART REWRITER (LOCAL FALLBACK + BULLET SPECS)
+# SMART REWRITER (LOCAL FALLBACK + BULLET SPECS + KEYERROR FIX)
 # ============================================================
 class SmartRewriter:
     def __init__(self):
@@ -337,11 +338,22 @@ class SmartRewriter:
                 items = [f"{k.strip()}: {v.strip()}" for k, v in matches]
         return items[:8]
 
+    # 🔥 FIXED: Safe formatting to prevent KeyError
     def generate_seo_content(self, title, raw_desc, category=None, store_context=None, specs_text=None):
-        # Local fallback logic (same as V5.0)
         hook_template, hook_benefit = self._get_unique(self.hook_pool, self.used_hooks)
-        hook = hook_template.format(title=title)
-        benefit = hook_benefit.format(category=category or 'piece')
+        
+        # Safe formatting for hook
+        try:
+            hook = hook_template.format(title=title)
+        except KeyError:
+            hook = hook_template.replace('{title}', title)
+        
+        # Safe formatting for benefit
+        try:
+            benefit = hook_benefit.format(category=category or 'piece')
+        except KeyError:
+            benefit = hook_benefit.replace('{category}', category or 'piece')
+        
         niche_line = f" Perfect for shoppers who care about {store_context.strip().rstrip('.')}." if store_context else ""
         intro = f"{hook}{benefit}.{niche_line}"
         
@@ -386,14 +398,12 @@ class SmartRewriter:
         }
 
 # ============================================================
-# 🔥 GEMINI AI DESCRIPTION GENERATOR
+# GEMINI AI DESCRIPTION GENERATOR (3.6 FLASH SUPPORT)
 # ============================================================
 def generate_ai_description_gemini(title, specs, category, store_context, api_key, model_name):
-    """Call Gemini API to generate unique, SEO-optimized description with bullet points."""
     if not api_key or not title:
         return None
     
-    # Build prompt
     prompt = f"""You are an expert e-commerce copywriter for a store: {store_context if store_context else 'Premium Products'}.
 Write a unique, compelling, and SEO-optimized description for the product: "{title}".
 Category: {category}
@@ -439,13 +449,11 @@ Make sure the content is original, flows naturally, and persuades the customer t
             except (KeyError, IndexError):
                 return None
         else:
-            # Rate limit or error
             return None
     except Exception:
         return None
 
 def parse_ai_response(text, fallback_title):
-    """Parse the structured AI response into a dictionary."""
     result = {
         'seo_title': f"{fallback_title} — Premium Quality",
         'short_description': '',
@@ -453,7 +461,6 @@ def parse_ai_response(text, fallback_title):
         'seo_description': ''
     }
     
-    # Simple parsing using headers
     sections = {
         '### SEO TITLE': 'seo_title',
         '### SHORT DESCRIPTION': 'short_description',
@@ -467,7 +474,6 @@ def parse_ai_response(text, fallback_title):
     for line in text.split('\n'):
         line = line.strip()
         if line in sections:
-            # Save previous section
             if current_section and current_content:
                 clean_content = ' '.join(current_content).strip()
                 result[sections[current_section]] = clean_content
@@ -476,21 +482,17 @@ def parse_ai_response(text, fallback_title):
         elif current_section:
             current_content.append(line)
     
-    # Save last section
     if current_section and current_content:
         clean_content = ' '.join(current_content).strip()
         if current_section in sections:
             result[sections[current_section]] = clean_content
     
-    # Fallback: Ensure long description has HTML paragraphs if missing
     if result['description_html'] and not '<p>' in result['description_html'] and not '<ul>' in result['description_html']:
-        # Try to split into paragraphs
         paragraphs = result['description_html'].split('\n\n')
         html_parts = []
         for p in paragraphs:
             p = p.strip()
             if p:
-                # Check if it contains bullet-like patterns
                 if '•' in p or '-' in p:
                     items = [i.strip() for i in re.split(r'[•\-]\s*', p) if i.strip()]
                     if items:
@@ -501,7 +503,6 @@ def parse_ai_response(text, fallback_title):
                     html_parts.append(f"<p>{p}</p>")
         result['description_html'] = ''.join(html_parts)
     
-    # Truncate lengths
     if len(result['seo_title']) > 70:
         result['seo_title'] = result['seo_title'][:67] + '...'
     if len(result['seo_description']) > 165:
@@ -1075,7 +1076,7 @@ def edit_image(img_data, filename, config):
             return None, None
 
 # ============================================================
-# MAIN SCRAPER (INTEGRATED WITH AI)
+# MAIN SCRAPER
 # ============================================================
 def scrape_product(url, session, config):
     headers = {'User-Agent': random.choice(USER_AGENTS)}
@@ -1135,7 +1136,6 @@ def scrape_product(url, session, config):
     if specs_section:
         specs_text = specs_section.get_text(' ', strip=True)
     
-    # Extract color & material for smart title
     color = ''
     material = ''
     if product_data.get('color'):
@@ -1150,13 +1150,11 @@ def scrape_product(url, session, config):
             material = mat.capitalize()
             break
 
-    # Smart Title
     if config.get('smart_title_enabled', True):
         title = generate_smart_title(original_title, specs_text, color, material)
     else:
         title = original_title
 
-    # ---------- AI GENERATION (New) ----------
     ai_content = None
     if config.get('ai_enabled', False) and config.get('gemini_api_key'):
         ai_content = generate_ai_description_gemini(
@@ -1165,10 +1163,9 @@ def scrape_product(url, session, config):
             category_str,
             config.get('store_context', ''),
             config.get('gemini_api_key'),
-            config.get('gemini_model', 'gemini-1.5-flash')
+            config.get('gemini_model', 'gemini-3.6-flash')
         )
     
-    # Use AI content if available, else local rewriter
     rewriter = SmartRewriter()
     if ai_content:
         seo_title = ai_content.get('seo_title', f"{title} — Premium Quality")
@@ -1182,11 +1179,9 @@ def scrape_product(url, session, config):
         gen_seo_description = local_content['seo_description']
         gen_short_desc = local_content['short_description']
 
-    # ----- SKU -----
     rand_suffix = ''.join(random.choices('ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789', k=4))
     parent_sku = f"CUSTOM-{rand_suffix}-{sku_raw}"
 
-    # ----- GALLERY IMAGES -----
     max_images = config.get('max_gallery_images', 10)
     raw_image_urls = collect_gallery_images(
         url, soup, base_url_domain, session, headers, product_data, max_images
@@ -1219,7 +1214,6 @@ def scrape_product(url, session, config):
     tags = "Imported"
     handle = generate_handle(title)
     
-    # ----- VARIATIONS -----
     offers = product_data.get('offers')
     variations_data = []
     
@@ -1255,7 +1249,6 @@ def scrape_product(url, session, config):
         if len(attr_names) > 1: opt2_name = attr_names[1]
         if len(attr_names) > 2: opt3_name = attr_names[2]
 
-    # Parent Row
     parent_row = {
         'Title': title,
         'URL handle': handle,
@@ -1317,7 +1310,6 @@ def scrape_product(url, session, config):
         'Google Shopping / Custom label 4': ''
     }
 
-    # Additional Image Rows
     image_rows = []
     for idx, img_url in enumerate(additional_images, start=2):
         img_row = {col: '' for col in SHOPIFY_COLUMNS}
@@ -1326,7 +1318,6 @@ def scrape_product(url, session, config):
         img_row['Image position'] = str(idx)
         image_rows.append(img_row)
 
-    # Variant Rows
     variant_rows = []
     if variations_data:
         for idx, var in enumerate(variations_data):
@@ -1780,4 +1771,4 @@ if st.session_state.is_ready:
                         st.session_state[key] = None
             st.rerun()
 
-st.caption("🛒 V5.1 | Gemini AI Descriptions (Toggle) | Smart Titles | Bullet Specs | Variations Fixed | 1000 MB ZIP Limit")
+st.caption("🛒 V5.2 | Gemini 3.6 Flash (Default) | KeyError Fixed | Smart Titles | Bullet Specs | Batch Mode")
