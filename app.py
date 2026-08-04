@@ -1,6 +1,5 @@
 import streamlit as st
 import requests
-import base64
 from bs4 import BeautifulSoup
 import re
 import random
@@ -49,9 +48,9 @@ if 'all_urls' not in st.session_state:
 # ============================================================
 # PAGE CONFIG
 # ============================================================
-st.set_page_config(page_title="Universal E-commerce Extractor + Branding Studio", page_icon="🛒")
-st.title("🛒 UNIVERSAL E-COMMERCE CSV + BRANDING STUDIO V4.3")
-st.markdown("**Gemini 3.0 Pro Image (Official Nano Banana) set as default**")
+st.set_page_config(page_title="Universal E-commerce Extractor V5", page_icon="🛒")
+st.title("🛒 UNIVERSAL E-COMMERCE EXTRACTOR V5.0")
+st.markdown("**Unique Descriptions | Bullet Specifications | Smart Title Generation | Variations Fixed**")
 
 st.components.v1.html("""
 <script>
@@ -62,7 +61,7 @@ st.components.v1.html("""
 """, height=0)
 
 # ============================================================
-# BRANDING STUDIO UI
+# BRANDING STUDIO UI (PURANA WAISA HI)
 # ============================================================
 st.subheader("🎨 Branding Studio (Optional)")
 with st.expander("⚙️ Configure Image Branding", expanded=True):
@@ -99,86 +98,24 @@ with st.expander("⚙️ Configure Image Branding", expanded=True):
         st.checkbox("✨ Brightness/Contrast Tweak", key="enable_enhance", value=True)
 
 # ============================================================
-# BACKGROUND CHANGER (UPGRADED: Gemini 3.0 Pro Image)
+# SMART TITLE GENERATOR (NEW)
 # ============================================================
-st.subheader("🖼️ Background Changer (Optional)")
-with st.expander("⚙️ Configure Background", expanded=False):
-    st.radio(
-        "Background Mode",
-        ["Original (No Change)", "Solid Color / Gradient (Free, Local)", "AI Generated Scene (Gemini)"],
-        key="bg_mode_choice",
-        help="Solid/Gradient = local background removal + fill, no API, no cost. "
-             "AI Generated = sends the photo to Google's Gemini 3.0 Pro Image (Nano Banana) model."
-    )
-    bg_choice = st.session_state.get("bg_mode_choice", "Original (No Change)")
-
-    if bg_choice == "Solid Color / Gradient (Free, Local)":
-        col_bg1, col_bg2 = st.columns(2)
-        with col_bg1:
-            st.color_picker("Background Color", "#F2EFE9", key="bg_solid_color")
-        with col_bg2:
-            st.radio("Style", ["Flat Color", "Soft Studio Gradient"], key="bg_solid_style", horizontal=True)
-        st.caption(
-            "⚠️ Ye feature `rembg` package par depend karta hai (local background-removal model)."
-        )
-
-    elif bg_choice == "AI Generated Scene (Gemini)":
-        st.text_input(
-            "Gemini API Key (aapki apni, free — Google AI Studio se)",
-            type="password", key="bg_gemini_api_key",
-            help="https://aistudio.google.com se free key milti hai."
-        )
-        # 🔥 FIX: Official Image Model = gemini-3.0-pro-image
-        st.text_input(
-            "Model Name (default: gemini-3.0-pro-image)",
-            key="bg_model_name",
-            value="gemini-3.0-pro-image",
-            help="Official Nano Banana model. Agar 429 aaye toh wait karein."
-        )
-        st.radio("Scene", ["Preset se choose karo", "Apna prompt likho"], key="bg_ai_prompt_mode", horizontal=True)
-        if st.session_state.get("bg_ai_prompt_mode", "Preset se choose karo") == "Preset se choose karo":
-            st.selectbox(
-                "Background Scene",
-                [
-                    "Rustic mountain cabin, snowy landscape, editorial lifestyle photography",
-                    "Minimalist white studio, soft professional lighting",
-                    "Urban city street, golden hour, editorial fashion photography",
-                    "Cozy indoor loft with warm wood tones and natural light",
-                    "Outdoor forest trail, natural daylight, lifestyle photography",
-                    "Modern marble countertop, soft studio lighting (good for non-apparel items)",
-                ],
-                key="bg_ai_preset"
-            )
-        else:
-            st.text_area("Apna background scene describe karein", key="bg_ai_custom_prompt",
-                         placeholder="e.g. Beachside boardwalk at sunset, warm golden light, editorial photography")
-        st.caption(
-            "⚠️ **Free tier limits:** 429 error aane par 15-30 min wait karein. "
-            "Paid plan enable karne se limits increase ho jati hain."
-        )
-
-
-st.subheader("📝 Description & SEO Settings")
-with st.expander("⚙️ Configure Product Descriptions", expanded=True):
-    col_ai1, col_ai2 = st.columns(2)
-    with col_ai1:
+st.subheader("📝 Content Settings")
+with st.expander("⚙️ Configure Product Content", expanded=True):
+    col_ct1, col_ct2 = st.columns(2)
+    with col_ct1:
         st.text_area("🏪 Store / Niche Context (optional)", key="ai_store_context",
-                      placeholder="e.g. Premium leather jackets store, target audience: men & women 20-45, focus on quality + comfort",
-                      height=100)
-    with col_ai2:
+                      placeholder="e.g. Premium leather jackets store, target audience: men & women 20-45",
+                      height=80)
+        
+        # 🔥 NEW TOGGLE: Smart Title Generation
+        st.checkbox("✨ Auto-Generate Unique Product Title (from specs + material + color)", 
+                    key="smart_title_enabled", value=True,
+                    help="ON: Tool will create unique titles like 'Sheepskin Waxed Biker Jacket - Black' using specs, material, color.\nOFF: Original product title as-is.")
+    
+    with col_ct2:
         st.slider("🖼️ Max Gallery Images per Product", 3, 20, 10, key="max_gallery_images")
-    st.caption("💡 Descriptions, SEO title aur meta description sab locally generate hote hain — koi API key nahi lagti.")
-
-    st.markdown("**✅ Kya khud generate karna hai? (Tick = naya likha jaye · Untick = original site se utha kar CSV mein dala jaye)**")
-    col_tg1, col_tg2, col_tg3, col_tg4 = st.columns(4)
-    with col_tg1:
-        st.checkbox("Meta Title", key="gen_meta_title", value=True)
-    with col_tg2:
-        st.checkbox("Meta Description", key="gen_meta_desc", value=True)
-    with col_tg3:
-        st.checkbox("Short Description", key="gen_short_desc", value=True)
-    with col_tg4:
-        st.checkbox("Long Description", key="gen_long_desc", value=True)
+        st.caption("💡 Descriptions & SEO content locally generated with variety (no repetition).")
 
 # ============================================================
 # MAIN INPUTS
@@ -239,65 +176,39 @@ def get_branding_config():
         'max_gallery_images': st.session_state.get("max_gallery_images", 10),
         'store_context': st.session_state.get("ai_store_context", ""),
         'export_format': 'woocommerce' if st.session_state.get("export_format", "🛍️ Shopify CSV").startswith("🛒") else 'shopify',
-        'gen_meta_title': st.session_state.get("gen_meta_title", True),
-        'gen_meta_desc': st.session_state.get("gen_meta_desc", True),
-        'gen_short_desc': st.session_state.get("gen_short_desc", True),
-        'gen_long_desc': st.session_state.get("gen_long_desc", True),
-        'bg_mode': (
-            'solid' if st.session_state.get("bg_mode_choice") == "Solid Color / Gradient (Free, Local)"
-            else 'ai' if st.session_state.get("bg_mode_choice") == "AI Generated Scene (Gemini)"
-            else 'none'
-        ),
-        'bg_solid_color': st.session_state.get("bg_solid_color", "#F2EFE9"),
-        'bg_solid_style': 'gradient' if st.session_state.get("bg_solid_style", "Soft Studio Gradient") == "Soft Studio Gradient" else 'flat',
-        'bg_gemini_api_key': st.session_state.get("bg_gemini_api_key", "").strip(),
-        'bg_model_name': st.session_state.get("bg_model_name", "gemini-3.0-pro-image").strip(),
-        'bg_ai_prompt': (
-            st.session_state.get("bg_ai_custom_prompt", "").strip()
-            if st.session_state.get("bg_ai_prompt_mode") == "Apna prompt likho"
-            else st.session_state.get("bg_ai_preset", "Minimalist white studio, soft professional lighting")
-        ),
+        'smart_title_enabled': st.session_state.get("smart_title_enabled", True),
     }
 
 # ============================================================
-# REWRITER + EXTRACTORS (100% local — no API key or internet AI call needed)
+# SMART REWRITER (UPGRADED: UNIQUE DESCRIPTIONS + BULLET SPECS)
 # ============================================================
 class SmartRewriter:
     def __init__(self):
-        self.synonyms = {
-            'great': 'exceptional', 'good': 'superior', 'best': 'top-tier',
-            'durable': 'long-lasting', 'strong': 'robust', 'quality': 'premium',
-            'amazing': 'remarkable', 'perfect': 'ideal', 'easy': 'effortless',
-            'simple': 'straightforward', 'modern': 'contemporary', 'classic': 'timeless',
-            'beautiful': 'exquisite', 'nice': 'fantastic', 'cool': 'stylish',
-            'high-quality': 'superior-grade', 'comfortable': 'ultra-comfortable',
-            'soft': 'plush', 'lightweight': 'featherlight', 'stylish': 'fashion-forward',
-            'reliable': 'dependable', 'affordable': 'budget-friendly', 'unique': 'one-of-a-kind'
-        }
-        self.protected = {
-            'leather', 'jacket', 'biker', 'motorcycle', 'hide', 'zip', 'pocket',
-            'collar', 'sleeve', 'fit', 'style', 'men', 'women', 'unisex', 'black',
-            'brown', 'tan', 'maroon', 'red', 'blue', 'green', 'grey', 'white',
-            'divi', 'engine', 'woocommerce', 'wordpress', 'hoodie', 'shirt', 'tee'
-        }
-        self.stopwords = {
-            'the', 'a', 'an', 'for', 'with', 'and', 'of', 'in', 'to', 'is', 'are',
-            'this', 'that', 'your', 'our', 'from', 'on', 'by', 'or', 'it', 'its',
-            'be', 'as', 'at', 'new', 'pcs', 'set'
-        }
-        self.hooks = [
-            "Meet the {title} — ", "Say hello to the {title}, ", "Introducing the {title}, ",
-            "Looking for something special? The {title} ", "Here's a piece you'll reach for again and again: the {title}, ",
-            "The {title} is here, and ", "Get to know the {title} — "
+        # Multiple hooks — har product ke liye alag choose hoga
+        self.hook_pool = [
+            ("Meet the {title} — ", "a piece that redefines what {category} should feel like."),
+            ("Say hello to the {title}, ", "where quality meets everyday functionality."),
+            ("Introducing the {title}, ", "designed for those who value both style and substance."),
+            ("The {title} is here — ", "crafted to become your go-to {category} for years to come."),
+            ("Step into the {title} — ", "a fresh take on classic {category} design."),
+            ("Discover the {title}, ", "where premium materials meet thoughtful craftsmanship."),
+            ("Elevate your wardrobe with the {title}, ", "a {category} that stands out for all the right reasons."),
+            ("Experience the {title} — ", "built with the kind of care that shows in every detail."),
+            ("The {title} isn't just another {category}; ", "it's the one you'll reach for time and again."),
+            ("Get to know the {title}, ", "crafted to look good, feel great, and last through every season."),
         ]
-        self.benefit_templates = [
+        
+        self.benefit_pool = [
             "designed with your comfort in mind from the very first wear",
             "built to handle everyday life without losing its shape or charm",
             "crafted with an eye for both style and lasting quality",
             "made to feel just as good as it looks",
             "put together with genuine care for fit, feel, and finish",
             "a favorite for anyone who wants quality without the fuss",
+            "built to last and engineered to perform",
+            "designed for real life — not just the showroom",
         ]
+        
         self.feature_pool = [
             "Premium materials chosen for comfort and long-lasting wear",
             "Thoughtful construction that holds its shape use after use",
@@ -309,15 +220,51 @@ class SmartRewriter:
             "Reinforced stitching and finishing where it matters most",
             "Breathable, comfortable feel that fits real, everyday life",
             "Color and finish that stay true wash after wash",
+            "Precision engineering for lasting durability",
+            "Premium hardware and closures for reliable everyday use",
         ]
-        self.care_cta_pool = [
+        
+        self.cta_pool = [
             "If you've been searching for something reliable and good-looking, this is worth adding to your cart.",
             "We think you'll love how it feels the moment you try it — go ahead and make it yours.",
             "A simple, no-guesswork way to upgrade your everyday look.",
             "Treat yourself to something that's built to last and easy to love.",
             "Add it to your collection today — we're confident it'll become a regular favorite.",
             "Still deciding? Our team is always happy to help you pick the right fit before you order.",
+            "Take it home and see the difference quality makes.",
+            "Experience the difference for yourself — order now and feel the quality.",
         ]
+        
+        self.seo_hooks = [
+            "Shop the {title} today.",
+            "Order your {title} now.",
+            "Discover the {title} collection.",
+            "The {title} is available now.",
+            "Elevate your style with the {title}.",
+            "Experience quality with the {title}.",
+            "Get the {title} at the best price.",
+            "Find your perfect {title} here.",
+        ]
+        
+        self.used_hooks = []
+        self.used_ctas = []
+        self.used_seo = []
+        self.used_features = []
+
+    def _get_unique(self, pool, used_list, max_attempts=20):
+        """Har product ke liye unique item choose karo, agar pool khatam ho toh reset"""
+        if len(used_list) >= len(pool) * 0.7:  # 70% use ho chuke toh reset
+            used_list.clear()
+        
+        for _ in range(max_attempts):
+            item = random.choice(pool)
+            if item not in used_list:
+                used_list.append(item)
+                return item
+        # Fallback
+        item = random.choice(pool)
+        used_list.append(item)
+        return item
 
     def _clean_text(self, text):
         text = re.sub(r'<[^<]+?>', ' ', text or '')
@@ -325,6 +272,21 @@ class SmartRewriter:
         return text
 
     def _synonym_pass(self, text):
+        synonyms = {
+            'great': 'exceptional', 'good': 'superior', 'best': 'top-tier',
+            'durable': 'long-lasting', 'strong': 'robust', 'quality': 'premium',
+            'amazing': 'remarkable', 'perfect': 'ideal', 'easy': 'effortless',
+            'simple': 'straightforward', 'modern': 'contemporary', 'classic': 'timeless',
+            'beautiful': 'exquisite', 'nice': 'fantastic', 'cool': 'stylish',
+            'high-quality': 'superior-grade', 'comfortable': 'ultra-comfortable',
+            'soft': 'plush', 'lightweight': 'featherlight', 'stylish': 'fashion-forward',
+        }
+        protected = {
+            'leather', 'jacket', 'biker', 'motorcycle', 'hide', 'zip', 'pocket',
+            'collar', 'sleeve', 'fit', 'style', 'men', 'women', 'unisex', 'black',
+            'brown', 'tan', 'maroon', 'red', 'blue', 'green', 'grey', 'white'
+        }
+        
         sentences = re.split(r'(?<=[.!?]) +', text)
         new_sentences = []
         for sent in sentences:
@@ -332,8 +294,8 @@ class SmartRewriter:
             new_words = []
             for word in words:
                 lower_word = word.lower().strip('.,!?')
-                if lower_word in self.synonyms and lower_word not in self.protected:
-                    replacement = self.synonyms[lower_word]
+                if lower_word in synonyms and lower_word not in protected:
+                    replacement = synonyms[lower_word]
                     if word[:1].isupper():
                         replacement = replacement.capitalize()
                     if word.endswith('.'):
@@ -344,83 +306,104 @@ class SmartRewriter:
             new_sentences.append(' '.join(new_words))
         return ' '.join(new_sentences).strip()
 
-    def _fit_length(self, text, min_len, max_len, filler_phrases, max_fillers=2):
-        text = text.strip()
-        if len(text) > max_len:
-            trimmed = text[:max_len].rsplit(' ', 1)[0]
-            return trimmed if trimmed else text[:max_len]
-        fillers = list(filler_phrases)
-        random.shuffle(fillers)
-        used = 0
-        for filler in fillers:
-            if len(text) >= min_len or used >= max_fillers:
-                break
-            sep = '' if text.endswith(('.', '!', '?')) else ' '
-            candidate = f"{text}{sep}{filler}"
-            if len(candidate) <= max_len:
-                text = candidate
-                used += 1
-        return text
+    def _format_specs_as_bullets(self, specs_text, title):
+        """Extract specifications and format as bullet points"""
+        if not specs_text or len(specs_text.strip()) < 10:
+            return []
+        
+        # Check if already has bullet-like structure
+        if '<li>' in specs_text or '•' in specs_text or re.search(r'\n\s*[-•]', specs_text):
+            # Already has bullets, just clean and return
+            cleaned = re.sub(r'<[^<]+?>', ' ', specs_text)
+            items = re.split(r'\n\s*[-•]\s*', cleaned)
+            items = [i.strip() for i in items if i.strip()]
+            if items:
+                return items
+        
+        # Split by common separators
+        separators = r'\n|;|,\.\s*|•|\*'
+        items = re.split(separators, specs_text)
+        items = [i.strip() for i in items if i.strip() and len(i.strip()) > 5]
+        
+        # If still too few, try to extract key-value pairs
+        if len(items) < 3:
+            # Look for "Key: Value" patterns
+            kv_pattern = re.compile(r'([A-Za-z\s]+):\s*([^,;\n]+)')
+            matches = kv_pattern.findall(specs_text)
+            if matches:
+                items = [f"{k.strip()}: {v.strip()}" for k, v in matches]
+        
+        return items[:8]  # Max 8 spec items
 
-    def enhance_description(self, text, title=""):
-        if not text or len(text) < 5:
-            return f"Discover the perfect blend of style and durability with this premium {title}. Crafted for the modern individual, it offers unmatched comfort and timeless appeal."
-        return self._synonym_pass(text)
-
-    def generate_seo_content(self, title, raw_desc, category=None, store_context=None):
-        clean_source = self._clean_text(raw_desc)
-        source_is_useful = len(clean_source) > 15 and clean_source.lower() != title.lower()
-        rewritten_source = self._synonym_pass(clean_source) if source_is_useful else ''
-
-        hook = random.choice(self.hooks).format(title=title)
-        benefit = random.choice(self.benefit_templates)
+    def generate_seo_content(self, title, raw_desc, category=None, store_context=None, specs_text=None):
+        """Generate UNIQUE content with bullet point specifications"""
+        
+        # ===== UNIQUE HOOK =====
+        hook_template, hook_benefit = self._get_unique(self.hook_pool, self.used_hooks)
+        hook = hook_template.format(title=title)
+        benefit = hook_benefit.format(category=category or 'piece')
+        
         niche_line = f" Perfect for shoppers who care about {store_context.strip().rstrip('.')}." if store_context else ""
         intro = f"{hook}{benefit}.{niche_line}"
-
-        para2 = ''
-        if rewritten_source:
-            sentences = re.split(r'(?<=[.!?]) +', rewritten_source)
-            para2 = ' '.join(sentences[:2]).strip()
-
-        features = random.sample(self.feature_pool, k=min(4, len(self.feature_pool)))
+        
+        # ===== PROCESS SPECIFICATIONS =====
+        spec_items = self._format_specs_as_bullets(specs_text or raw_desc, title)
+        
+        # ===== FEATURES (unique pool se) =====
+        num_features = random.randint(3, 5)
+        features = []
+        for _ in range(num_features):
+            f = self._get_unique(self.feature_pool, self.used_features)
+            features.append(f)
+        
         if category:
-            features.append(f"Thoughtfully categorized under {category.split('>')[-1].strip()} so it's easy to find and pair with what you already own")
-        feature_html = ''.join(f"<li>{f}</li>" for f in features)
-
-        cta = random.choice(self.care_cta_pool)
-
+            features.append(f"Thoughtfully categorized under {category.split('>')[-1].strip()}")
+        
+        # ===== COMBINE FEATURES + SPECS =====
+        all_bullets = []
+        all_bullets.extend(spec_items[:4])  # Pehle 4 specs
+        all_bullets.extend(features)  # Phir features
+        
+        feature_html = ''.join(f"<li>{item}</li>" for item in all_bullets[:8])
+        
+        # ===== UNIQUE CTA =====
+        cta = self._get_unique(self.cta_pool, self.used_ctas)
+        
+        # ===== BUILD DESCRIPTION =====
         parts = [f"<p>{intro}</p>"]
-        if para2:
-            parts.append(f"<p>{para2}</p>")
-        parts.append(f"<ul>{feature_html}</ul>")
+        if spec_items:
+            parts.append(f"<ul>{feature_html}</ul>")
         parts.append(f"<p>{cta}</p>")
         description_html = ''.join(parts)
-
-        seo_title = self._fit_length(
-            f"{title} - Premium Quality", 55, 60,
-            ["Shop Now", "Buy Today", "New Arrival", "Top Pick", "Order Now", "Shop"],
-            max_fillers=1
-        )
-        plain_intro = re.sub(r'<[^<]+?>', ' ', intro)
-        plain_intro = re.sub(r'\s+', ' ', plain_intro).strip()
-        seo_description = self._fit_length(
-            f"{plain_intro} Shop the {title} today.", 155, 160,
-            ["Order now.", "Free shipping available.", "Limited stock.", "Shop the collection.", "See more details inside."]
-        )
-
-        short_description = self._fit_length(
-            plain_intro, 90, 220,
-            ["Shop the collection today.", "Built to last.", "A versatile everyday pick.", "Order yours now."],
-            max_fillers=1
-        )
-
+        
+        # ===== SEO TITLE (UNIQUE) =====
+        seo_hook = self._get_unique(self.seo_hooks, self.used_seo)
+        seo_title = f"{title} — {seo_hook.format(title=title)}"
+        if len(seo_title) > 60:
+            seo_title = seo_title[:57] + '...'
+        
+        # ===== SEO DESCRIPTION =====
+        plain_intro = re.sub(r'<[^<]+?>', ' ', intro)[:120]
+        seo_description = f"{plain_intro} Discover the {title} collection today."
+        if len(seo_description) > 160:
+            seo_description = seo_description[:157] + '...'
+        
+        # ===== SHORT DESCRIPTION =====
+        short_desc = plain_intro[:100]
+        if len(short_desc) > 100:
+            short_desc = short_desc[:97] + '...'
+        
         return {
             'description_html': description_html,
             'seo_title': seo_title,
             'seo_description': seo_description,
-            'short_description': short_description
+            'short_description': short_desc,
+            'specs_bullets': all_bullets
         }
 
+# ============================================================
+# EXTRACTORS (Platform-agnostic)
+# ============================================================
 def safe_get_offer_price(offers):
     if isinstance(offers, dict): return offers.get('price', '')
     elif isinstance(offers, list) and len(offers) > 0:
@@ -434,10 +417,8 @@ def safe_get_sku(sku_data):
     return ''
 
 def safe_get_brand(brand_data):
-    if isinstance(brand_data, str):
-        return brand_data
-    if isinstance(brand_data, dict):
-        return brand_data.get('name', '')
+    if isinstance(brand_data, str): return brand_data
+    if isinstance(brand_data, dict): return brand_data.get('name', '')
     if isinstance(brand_data, list) and brand_data:
         return safe_get_brand(brand_data[0])
     return ''
@@ -628,6 +609,92 @@ def extract_vendor(soup, product_data, default="Imported Vendor"):
     return default
 
 # ============================================================
+# 🔥 NEW: SMART TITLE GENERATOR
+# ============================================================
+def generate_smart_title(original_title, specs_text, color=None, material=None):
+    """Generate unique product title from specs + material + color (size excluded)"""
+    if not specs_text:
+        return original_title
+    
+    # Extract key specs
+    specs_lower = specs_text.lower()
+    
+    # Find material
+    materials = ['leather', 'sheepskin', 'goatskin', 'cowhide', 'suede', 'nubuck', 
+                 'canvas', 'denim', 'wool', 'polyester', 'nylon', 'cotton', 'hemp']
+    detected_material = ''
+    for mat in materials:
+        if mat in specs_lower:
+            detected_material = mat.capitalize()
+            break
+    
+    # Find finish
+    finish_types = ['waxed', 'pull-up', 'semi-aniline', 'aniline', 'distressed', 
+                    'vintage', 'washed', 'oiled', 'matte', 'glossy']
+    detected_finish = ''
+    for fin in finish_types:
+        if fin in specs_lower:
+            detected_finish = fin.capitalize()
+            break
+    
+    # Find color
+    colors = ['black', 'brown', 'tan', 'maroon', 'red', 'blue', 'green', 'grey', 
+              'white', 'charcoal', 'navy', 'olive', 'camel', 'chestnut', 'mahogany']
+    detected_color = ''
+    for col in colors:
+        if col in specs_lower:
+            detected_color = col.capitalize()
+            break
+    
+    # Build title parts (exclude size intentionally)
+    title_parts = []
+    
+    # Add finish if found
+    if detected_finish:
+        title_parts.append(detected_finish)
+    
+    # Add material if found
+    if detected_material:
+        title_parts.append(detected_material)
+    
+    # Extract core name (remove color/size/material from original)
+    core_name = original_title
+    # Remove detected color
+    if detected_color and detected_color.lower() in core_name.lower():
+        core_name = re.sub(re.escape(detected_color), '', core_name, flags=re.I).strip()
+    # Remove detected material
+    if detected_material and detected_material.lower() in core_name.lower():
+        core_name = re.sub(re.escape(detected_material), '', core_name, flags=re.I).strip()
+    # Remove finish
+    if detected_finish and detected_finish.lower() in core_name.lower():
+        core_name = re.sub(re.escape(detected_finish), '', core_name, flags=re.I).strip()
+    # Clean up extra spaces and hyphens
+    core_name = re.sub(r'\s+', ' ', core_name).strip()
+    core_name = re.sub(r'-\s*', '-', core_name)
+    
+    if core_name:
+        title_parts.append(core_name)
+    else:
+        title_parts.append(original_title)
+    
+    # Add color if found (but only if not already in title)
+    if detected_color and detected_color.lower() not in ' '.join(title_parts).lower():
+        title_parts.append(detected_color)
+    
+    # Join with hyphens
+    smart_title = ' - '.join(title_parts)
+    
+    # Clean up: remove multiple spaces/hyphens
+    smart_title = re.sub(r'\s+', ' ', smart_title).strip()
+    smart_title = re.sub(r'-\s*-\s*', '-', smart_title)
+    
+    # If too long, keep it reasonable
+    if len(smart_title) > 80:
+        smart_title = smart_title[:77] + '...'
+    
+    return smart_title if len(smart_title) > len(original_title) * 0.5 else original_title
+
+# ============================================================
 # GALLERY IMAGE HELPERS
 # ============================================================
 def strip_size_suffix(url):
@@ -779,94 +846,9 @@ def collect_gallery_images(url, soup, base_url_domain, session, headers, product
     return final
 
 # ============================================================
-# BACKGROUND CHANGER HELPERS (FIXED: Gemini 3.0 Pro Image)
+# IMAGE EDITOR (PURANA, BACKGROUND REMOVED)
 # ============================================================
-def remove_background_local(img):
-    try:
-        from rembg import remove
-    except ImportError:
-        return None
-    try:
-        buf = BytesIO()
-        img.convert('RGB').save(buf, format='PNG')
-        cutout_bytes = remove(buf.getvalue())
-        return Image.open(BytesIO(cutout_bytes)).convert('RGBA')
-    except Exception:
-        return None
-
-def apply_solid_background(cutout_rgba, hex_color, style='gradient'):
-    hex_color = (hex_color or '#F2EFE9').lstrip('#')
-    try:
-        r, g, b = tuple(int(hex_color[i:i+2], 16) for i in (0, 2, 4))
-    except Exception:
-        r, g, b = (242, 239, 233)
-    w, h = cutout_rgba.size
-    canvas = Image.new('RGB', (w, h), (r, g, b))
-    if style == 'gradient':
-        darker = tuple(max(0, c - 28) for c in (r, g, b))
-        dark_layer = Image.new('RGB', (w, h), darker)
-        vignette = Image.new('L', (w, h), 0)
-        vdraw = ImageDraw.Draw(vignette)
-        max_r = int(((w / 2) ** 2 + (h / 2) ** 2) ** 0.5)
-        vdraw.ellipse((w / 2 - max_r * 0.55, h / 2 - max_r * 0.55, w / 2 + max_r * 0.55, h / 2 + max_r * 0.55), fill=200)
-        vignette = ImageOps.invert(vignette).filter(ImageFilter.GaussianBlur(max(w, h) // 8))
-        canvas = Image.composite(dark_layer, canvas, vignette)
-    canvas = canvas.convert('RGBA')
-    canvas.paste(cutout_rgba, (0, 0), cutout_rgba)
-    return canvas.convert('RGB')
-
-def generate_ai_background(img, prompt, api_key, model_name="gemini-3.0-pro-image"):
-    try:
-        buf = BytesIO()
-        img.convert('RGB').save(buf, format='JPEG', quality=90)
-        img_b64 = base64.b64encode(buf.getvalue()).decode('utf-8')
-        full_prompt = (
-            f"Replace only the background of this product photo with: {prompt}. "
-            "Keep the product itself — its exact shape, color, texture, proportions, logos and every "
-            "detail — completely unchanged. Match realistic lighting, shadow and perspective so the "
-            "product looks naturally placed in the new scene. Professional e-commerce product photography."
-        )
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent"
-        resp = requests.post(
-            url,
-            headers={"x-goog-api-key": api_key, "Content-Type": "application/json"},
-            json={"contents": [{"parts": [
-                {"text": full_prompt},
-                {"inline_data": {"mime_type": "image/jpeg", "data": img_b64}}
-            ]}]},
-            timeout=60
-        )
-        if resp.status_code != 200:
-            return None, f"Gemini API error {resp.status_code} - {resp.text[:200]}"
-        data = resp.json()
-        parts = data.get('candidates', [{}])[0].get('content', {}).get('parts', [])
-        for part in parts:
-            inline = part.get('inlineData') or part.get('inline_data')
-            if inline and inline.get('data'):
-                return Image.open(BytesIO(base64.b64decode(inline['data']))).convert('RGB'), None
-        return None, "No image returned (prompt may have been filtered or model cannot generate images)."
-    except Exception as e:
-        return None, str(e)
-
-def apply_background_change(final_img, config, bg_status_placeholder=None):
-    bg_mode = config.get('bg_mode', 'none')
-    if bg_mode == 'solid':
-        cutout = remove_background_local(final_img)
-        if cutout is not None:
-            return apply_solid_background(cutout, config.get('bg_solid_color', '#F2EFE9'), config.get('bg_solid_style', 'gradient'))
-    elif bg_mode == 'ai':
-        api_key = config.get('bg_gemini_api_key', '')
-        if api_key:
-            model_name = config.get('bg_model_name', 'gemini-3.0-pro-image')
-            new_img, err = generate_ai_background(final_img, config.get('bg_ai_prompt', ''), api_key, model_name)
-            if new_img is not None:
-                return new_img
-            else:
-                if bg_status_placeholder:
-                    bg_status_placeholder.warning(f"⚠️ AI Background failed: {err if err else 'Check API key or model.'} Using original background.")
-    return final_img
-
-def edit_image(img_data, filename, config, bg_status_placeholder=None):
+def edit_image(img_data, filename, config):
     try:
         img = Image.open(BytesIO(img_data))
         if img.mode in ('RGBA', 'LA', 'P'):
@@ -882,12 +864,6 @@ def edit_image(img_data, filename, config, bg_status_placeholder=None):
             final_img = enhancer.enhance(random.uniform(0.92, 1.08))
             enhancer = ImageEnhance.Contrast(final_img)
             final_img = enhancer.enhance(random.uniform(0.95, 1.05))
-
-        if config.get('bg_mode', 'none') != 'none':
-            final_img = apply_background_change(final_img, config, bg_status_placeholder)
-            if final_img.mode != 'RGB':
-                final_img = final_img.convert('RGB')
-            width, height = final_img.size
         
         if config.get('enable_rounded', False):
             mask = Image.new('L', final_img.size, 0)
@@ -1010,9 +986,9 @@ def edit_image(img_data, filename, config, bg_status_placeholder=None):
             return None, None
 
 # ============================================================
-# SHOPIFY SCRAPER (FULL GALLERY)
+# MAIN SCRAPER (FIXED: VARIATIONS + SMART TITLE + UNIQUE CONTENT)
 # ============================================================
-def scrape_product(url, session, config, bg_status_placeholder=None):
+def scrape_product(url, session, config):
     headers = {'User-Agent': random.choice(USER_AGENTS)}
     for attempt in range(2):
         try:
@@ -1058,52 +1034,76 @@ def scrape_product(url, session, config, bg_status_placeholder=None):
         if product_data:
             break
 
-    title = extract_title(soup, product_data, url)
-    raw_desc = extract_raw_description(soup, product_data) or title
-    category_str_early = format_category(soup, product_data, title)
-
-    want_meta_title = config.get('gen_meta_title', True)
-    want_meta_desc = config.get('gen_meta_desc', True)
-    want_short_desc = config.get('gen_short_desc', True)
-    want_long_desc = config.get('gen_long_desc', True)
-
-    rewriter = SmartRewriter()
-    if want_meta_title or want_meta_desc or want_short_desc or want_long_desc:
-        seo_content = rewriter.generate_seo_content(
-            title, raw_desc, category_str_early, config.get('store_context')
-        )
-    else:
-        seo_content = {'description_html': '', 'seo_title': '', 'seo_description': '', 'short_description': ''}
-
-    if want_long_desc:
-        long_desc = seo_content['description_html']
-    else:
-        scraped_long = re.sub(r'\s+', ' ', raw_desc or '').strip()
-        long_desc = f"<p>{scraped_long}</p>" if scraped_long else ''
-
-    gen_seo_title = seo_content['seo_title'] if want_meta_title else extract_site_meta_title(soup, title)
-    gen_seo_description = seo_content['seo_description'] if want_meta_desc else extract_site_meta_description(soup)
-    gen_short_desc = seo_content['short_description'] if want_short_desc else extract_site_short_description(soup, raw_desc)
-
+    # ----- EXTRACT DATA -----
+    original_title = extract_title(soup, product_data, url)
+    raw_desc = extract_raw_description(soup, product_data) or original_title
+    category_str = format_category(soup, product_data, original_title)
     price = extract_price(soup, product_data)
     sku_raw = extract_sku(soup, product_data)
+    vendor = extract_vendor(soup, product_data)
+    
+    # ----- EXTRACT SPECIFICATIONS (for bullet points & smart title) -----
+    specs_text = raw_desc
+    # Try to find a specs/attributes section
+    specs_section = soup.find(['div', 'ul', 'table'], {'class': re.compile(r'spec|attribute|detail|features', re.I)})
+    if specs_section:
+        specs_text = specs_section.get_text(' ', strip=True)
+    
+    # ----- EXTRACT COLOR & MATERIAL -----
+    color = ''
+    material = ''
+    # Look for color in product data
+    if product_data.get('color'):
+        color = product_data.get('color')
+    else:
+        color_match = re.search(r'color[:\s]+([a-zA-Z]+)', raw_desc, re.I)
+        if color_match:
+            color = color_match.group(1).capitalize()
+    
+    # Look for material
+    materials = ['leather', 'sheepskin', 'goatskin', 'cowhide', 'suede', 'nubuck', 'canvas', 'denim', 'wool']
+    for mat in materials:
+        if mat in raw_desc.lower():
+            material = mat.capitalize()
+            break
+    
+    # ----- SMART TITLE GENERATION (TOGGLE) -----
+    if config.get('smart_title_enabled', True):
+        title = generate_smart_title(original_title, specs_text, color, material)
+    else:
+        title = original_title
+
+    # ----- GENERATE UNIQUE CONTENT -----
+    rewriter = SmartRewriter()
+    seo_content = rewriter.generate_seo_content(
+        title, raw_desc, category_str, config.get('store_context', ''), specs_text
+    )
+
+    long_desc = seo_content['description_html']
+    gen_seo_title = seo_content['seo_title']
+    gen_seo_description = seo_content['seo_description']
+    gen_short_desc = seo_content['short_description']
+
+    # ----- GENERATE SKU -----
     rand_suffix = ''.join(random.choices('ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789', k=4))
     parent_sku = f"CUSTOM-{rand_suffix}-{sku_raw}"
 
+    # ----- GALLERY IMAGES -----
     max_images = config.get('max_gallery_images', 10)
     raw_image_urls = collect_gallery_images(
         url, soup, base_url_domain, session, headers, product_data, max_images
     )
 
+    # Process images
     image_zip_data = {}
     processed_image_urls = []
     
     if config.get('edit_images', False):
-        for idx, img_url in enumerate(raw_image_urls):
+        for img_url in raw_image_urls:
             try:
                 img_resp = session.get(img_url, timeout=15)
                 if img_resp.status_code == 200:
-                    new_name, edited_data = edit_image(img_resp.content, img_url, config, bg_status_placeholder)
+                    new_name, edited_data = edit_image(img_resp.content, img_url, config)
                     if new_name and edited_data:
                         image_zip_data[new_name] = edited_data
                         processed_image_urls.append(new_name)
@@ -1119,27 +1119,52 @@ def scrape_product(url, session, config, bg_status_placeholder=None):
     main_image = processed_image_urls[0] if processed_image_urls else ''
     additional_images = processed_image_urls[1:] if len(processed_image_urls) > 1 else []
 
-    category_str = category_str_early
-    vendor = extract_vendor(soup, product_data)
     tags = "Imported"
     handle = generate_handle(title)
     
+    # ----- EXTRACT VARIANTS (FIXED: SIZE + COLOR) -----
     offers = product_data.get('offers')
     variations_data = []
+    
     if isinstance(offers, list) and len(offers) > 1:
         for offer in offers:
             if isinstance(offer, dict):
                 var_sku = offer.get('sku', f'VAR-{len(variations_data)+1}')
                 var_price = offer.get('price', price)
                 var_attrs = {}
-                if 'size' in offer: var_attrs['Size'] = offer['size']
-                if 'color' in offer: var_attrs['Color'] = offer['color']
-                if not var_attrs: var_attrs['Option'] = f'Variant {len(variations_data)+1}'
+                
+                # Extract attributes
+                if 'size' in offer:
+                    var_attrs['Size'] = offer['size']
+                if 'color' in offer:
+                    var_attrs['Color'] = offer['color']
+                if 'material' in offer:
+                    var_attrs['Material'] = offer['material']
+                
+                # Also try from offers[0] if attributes are in the root
+                if not var_attrs and len(variations_data) == 0 and 'size' in product_data:
+                    var_attrs['Size'] = product_data.get('size')
+                if not var_attrs and len(variations_data) == 0 and 'color' in product_data:
+                    var_attrs['Color'] = product_data.get('color')
+                
+                if not var_attrs:
+                    var_attrs['Option'] = f'Variant {len(variations_data)+1}'
+                
+                # Try to get variant image
+                var_img = offer.get('image', '')
+                
                 variations_data.append({
-                    'sku': var_sku, 'price': var_price, 'attrs': var_attrs,
-                    'image': offer.get('image', '')
+                    'sku': var_sku,
+                    'price': var_price,
+                    'attrs': var_attrs,
+                    'image': var_img
                 })
 
+    # If no variations found, treat as simple product
+    if not variations_data:
+        variations_data = []
+
+    # ----- OPTION NAMES -----
     opt1_name = opt2_name = opt3_name = ''
     if variations_data:
         attr_names = set()
@@ -1150,28 +1175,69 @@ def scrape_product(url, session, config, bg_status_placeholder=None):
         if len(attr_names) > 1: opt2_name = attr_names[1]
         if len(attr_names) > 2: opt3_name = attr_names[2]
 
+    # ----- PARENT ROW -----
     parent_row = {
-        'Title': title, 'URL handle': handle, 'Description': long_desc, 'Vendor': vendor,
-        'Product category': category_str, 'Type': category_str.split('>')[-1].strip() if category_str and category_str != 'Uncategorized' else '',
-        'Tags': tags, 'Published on online store': 'TRUE', 'Status': 'active', 'SKU': '',
-        'Barcode': '', 'Option1 name': opt1_name, 'Option1 value': '', 'Option1 Linked To': 'Option1 name' if opt1_name else '',
-        'Option2 name': opt2_name, 'Option2 value': '', 'Option2 Linked To': 'Option2 name' if opt2_name else '',
-        'Option3 name': opt3_name, 'Option3 value': '', 'Option3 Linked To': 'Option3 name' if opt3_name else '',
-        'Price': '', 'Compare-at price': '', 'Cost per item': '', 'Charge tax': 'TRUE', 'Tax code': '',
-        'Unit price total measure': '', 'Unit price total measure unit': '', 'Unit price base measure': '', 'Unit price base measure unit': '',
-        'Inventory tracker': '', 'Inventory quantity': '', 'Continue selling when out of stock': '',
-        'Weight value (grams)': '', 'Weight unit for display': '', 'Requires shipping': 'TRUE',
-        'Fulfillment service': 'manual', 'Product image URL': main_image, 'Image position': '1',
-        'Image alt text': title, 'Variant image URL': '', 'Gift card': 'FALSE',
-        'SEO title': gen_seo_title, 'SEO description': gen_seo_description,
+        'Title': title,
+        'URL handle': handle,
+        'Description': long_desc,
+        'Vendor': vendor,
+        'Product category': category_str,
+        'Type': category_str.split('>')[-1].strip() if category_str and category_str != 'Uncategorized' else '',
+        'Tags': tags,
+        'Published on online store': 'TRUE',
+        'Status': 'active',
+        'SKU': '',
+        'Barcode': '',
+        'Option1 name': opt1_name,
+        'Option1 value': '',
+        'Option1 Linked To': 'Option1 name' if opt1_name else '',
+        'Option2 name': opt2_name,
+        'Option2 value': '',
+        'Option2 Linked To': 'Option2 name' if opt2_name else '',
+        'Option3 name': opt3_name,
+        'Option3 value': '',
+        'Option3 Linked To': 'Option3 name' if opt3_name else '',
+        'Price': '',
+        'Compare-at price': '',
+        'Cost per item': '',
+        'Charge tax': 'TRUE',
+        'Tax code': '',
+        'Unit price total measure': '',
+        'Unit price total measure unit': '',
+        'Unit price base measure': '',
+        'Unit price base measure unit': '',
+        'Inventory tracker': '',
+        'Inventory quantity': '',
+        'Continue selling when out of stock': '',
+        'Weight value (grams)': '',
+        'Weight unit for display': '',
+        'Requires shipping': 'TRUE',
+        'Fulfillment service': 'manual',
+        'Product image URL': main_image,
+        'Image position': '1',
+        'Image alt text': title,
+        'Variant image URL': '',
+        'Gift card': 'FALSE',
+        'SEO title': gen_seo_title,
+        'SEO description': gen_seo_description,
         'Short description': gen_short_desc,
-        'Color (product.metafields.shopify.color-pattern)': '', 'Google Shopping / Google product category': category_str,
-        'Google Shopping / Gender': '', 'Google Shopping / Age group': '', 'Google Shopping / Manufacturer part number (MPN)': '',
-        'Google Shopping / Ad group name': '', 'Google Shopping / Ads labels': '', 'Google Shopping / Condition': '',
-        'Google Shopping / Custom product': '', 'Google Shopping / Custom label 0': '', 'Google Shopping / Custom label 1': '',
-        'Google Shopping / Custom label 2': '', 'Google Shopping / Custom label 3': '', 'Google Shopping / Custom label 4': ''
+        'Color (product.metafields.shopify.color-pattern)': '',
+        'Google Shopping / Google product category': category_str,
+        'Google Shopping / Gender': '',
+        'Google Shopping / Age group': '',
+        'Google Shopping / Manufacturer part number (MPN)': '',
+        'Google Shopping / Ad group name': '',
+        'Google Shopping / Ads labels': '',
+        'Google Shopping / Condition': '',
+        'Google Shopping / Custom product': '',
+        'Google Shopping / Custom label 0': '',
+        'Google Shopping / Custom label 1': '',
+        'Google Shopping / Custom label 2': '',
+        'Google Shopping / Custom label 3': '',
+        'Google Shopping / Custom label 4': ''
     }
 
+    # ----- ADDITIONAL IMAGE ROWS -----
     image_rows = []
     for idx, img_url in enumerate(additional_images, start=2):
         img_row = {col: '' for col in SHOPIFY_COLUMNS}
@@ -1180,6 +1246,7 @@ def scrape_product(url, session, config, bg_status_placeholder=None):
         img_row['Image position'] = str(idx)
         image_rows.append(img_row)
 
+    # ----- VARIANT ROWS -----
     variant_rows = []
     if variations_data:
         for idx, var in enumerate(variations_data):
@@ -1190,13 +1257,14 @@ def scrape_product(url, session, config, bg_status_placeholder=None):
             attr2_val = list(var_attrs.values())[1] if len(var_attrs) > 1 else ''
             attr3_val = list(var_attrs.values())[2] if len(var_attrs) > 2 else ''
 
+            # Variant image
             var_img = var.get('image', '')
             var_img_url = ''
             if config.get('edit_images', False) and var_img:
                 try:
                     img_resp = session.get(var_img, timeout=15)
                     if img_resp.status_code == 200:
-                        new_name, edited_data = edit_image(img_resp.content, var_img, config, bg_status_placeholder)
+                        new_name, edited_data = edit_image(img_resp.content, var_img, config)
                         if new_name and edited_data:
                             image_zip_data[new_name] = edited_data
                             var_img_url = new_name
@@ -1206,29 +1274,67 @@ def scrape_product(url, session, config, bg_status_placeholder=None):
                 var_img_url = ''
 
             variant_row = {
-                'Title': '', 'URL handle': handle, 'Description': '', 'Vendor': '', 'Product category': '',
-                'Type': '', 'Tags': '', 'Published on online store': 'TRUE', 'Status': 'active',
-                'SKU': var_sku, 'Barcode': random.randint(1000000000, 9999999999),
-                'Option1 name': '', 'Option1 value': attr1_val, 'Option1 Linked To': '',
-                'Option2 name': '', 'Option2 value': attr2_val, 'Option2 Linked To': '',
-                'Option3 name': '', 'Option3 value': attr3_val, 'Option3 Linked To': '',
-                'Price': var_price, 'Compare-at price': '', 'Cost per item': '', 'Charge tax': 'TRUE', 'Tax code': '',
-                'Unit price total measure': '', 'Unit price total measure unit': '', 'Unit price base measure': '', 'Unit price base measure unit': '',
-                'Inventory tracker': 'shopify', 'Inventory quantity': 10, 'Continue selling when out of stock': 'DENY',
-                'Weight value (grams)': 150, 'Weight unit for display': 'g', 'Requires shipping': 'TRUE',
-                'Fulfillment service': 'manual', 'Product image URL': '', 'Image position': '',
-                'Image alt text': '', 'Variant image URL': var_img_url, 'Gift card': 'FALSE',
-                'SEO title': '', 'SEO description': '',
+                'Title': '',
+                'URL handle': handle,
+                'Description': '',
+                'Vendor': '',
+                'Product category': '',
+                'Type': '',
+                'Tags': '',
+                'Published on online store': 'TRUE',
+                'Status': 'active',
+                'SKU': var_sku,
+                'Barcode': random.randint(1000000000, 9999999999),
+                'Option1 name': '',
+                'Option1 value': attr1_val,
+                'Option1 Linked To': '',
+                'Option2 name': '',
+                'Option2 value': attr2_val,
+                'Option2 Linked To': '',
+                'Option3 name': '',
+                'Option3 value': attr3_val,
+                'Option3 Linked To': '',
+                'Price': var_price,
+                'Compare-at price': '',
+                'Cost per item': '',
+                'Charge tax': 'TRUE',
+                'Tax code': '',
+                'Unit price total measure': '',
+                'Unit price total measure unit': '',
+                'Unit price base measure': '',
+                'Unit price base measure unit': '',
+                'Inventory tracker': 'shopify',
+                'Inventory quantity': 10,
+                'Continue selling when out of stock': 'DENY',
+                'Weight value (grams)': 150,
+                'Weight unit for display': 'g',
+                'Requires shipping': 'TRUE',
+                'Fulfillment service': 'manual',
+                'Product image URL': '',
+                'Image position': '',
+                'Image alt text': '',
+                'Variant image URL': var_img_url,
+                'Gift card': 'FALSE',
+                'SEO title': '',
+                'SEO description': '',
                 'Color (product.metafields.shopify.color-pattern)': attr2_val if opt2_name.lower() == 'color' else attr1_val if opt1_name.lower() == 'color' else '',
-                'Google Shopping / Google product category': '', 'Google Shopping / Gender': '',
-                'Google Shopping / Age group': '', 'Google Shopping / Manufacturer part number (MPN)': f'MPN-{var_sku}',
-                'Google Shopping / Ad group name': '', 'Google Shopping / Ads labels': '',
-                'Google Shopping / Condition': 'New', 'Google Shopping / Custom product': '',
-                'Google Shopping / Custom label 0': '', 'Google Shopping / Custom label 1': '',
-                'Google Shopping / Custom label 2': '', 'Google Shopping / Custom label 3': '', 'Google Shopping / Custom label 4': ''
+                'Google Shopping / Google product category': '',
+                'Google Shopping / Gender': '',
+                'Google Shopping / Age group': '',
+                'Google Shopping / Manufacturer part number (MPN)': f'MPN-{var_sku}',
+                'Google Shopping / Ad group name': '',
+                'Google Shopping / Ads labels': '',
+                'Google Shopping / Condition': 'New',
+                'Google Shopping / Custom product': '',
+                'Google Shopping / Custom label 0': '',
+                'Google Shopping / Custom label 1': '',
+                'Google Shopping / Custom label 2': '',
+                'Google Shopping / Custom label 3': '',
+                'Google Shopping / Custom label 4': ''
             }
             variant_rows.append(variant_row)
     
+    # If no variations, simple product
     if not variations_data:
         parent_row['SKU'] = parent_sku
         parent_row['Price'] = price
@@ -1393,12 +1499,12 @@ def build_woocommerce_rows(product_rows, config):
 # ============================================================
 # PROCESS BATCH FUNCTION
 # ============================================================
-def process_batch(urls, config, session, bg_status_placeholder=None):
+def process_batch(urls, config, session):
     all_rows = []
     image_data = {}
     failed = []
     for url in urls:
-        results, img_data, error = scrape_product(url, session, config, bg_status_placeholder)
+        results, img_data, error = scrape_product(url, session, config)
         if results:
             all_rows.extend(results)
             if img_data:
@@ -1438,14 +1544,13 @@ if st.button("🚀 Generate Shopify CSV + ZIP (Batch Mode)", type="primary") or 
         if start < total:
             status_text = st.empty()
             progress_bar = st.progress(0)
-            bg_status_placeholder = st.empty()
             
             status_text.info(f"⏳ Processing Batch {batch_idx+1}/{(total // BATCH_SIZE) + 1} ({start+1} to {end} of {total})...")
             
             config = get_branding_config()
             session = requests.Session()
 
-            batch_rows, batch_images, batch_failed = process_batch(current_batch, config, session, bg_status_placeholder)
+            batch_rows, batch_images, batch_failed = process_batch(current_batch, config, session)
             
             st.session_state.all_final_rows.extend(batch_rows)
             st.session_state.all_image_data.update(batch_images)
@@ -1597,4 +1702,4 @@ if st.session_state.is_ready:
                         st.session_state[key] = None
             st.rerun()
 
-st.caption("🛒 V4.3 | Gemini 3.0 Pro Image (Official) | Full Gallery | Batch Mode")
+st.caption("🛒 V5.0 | Smart Titles | Unique Descriptions | Bullet Specs | Variations Fixed | 1000 MB ZIP Limit")
