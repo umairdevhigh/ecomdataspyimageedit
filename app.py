@@ -48,9 +48,9 @@ if 'all_urls' not in st.session_state:
 # ============================================================
 # PAGE CONFIG
 # ============================================================
-st.set_page_config(page_title="Universal E-commerce Extractor V5", page_icon="🛒")
-st.title("🛒 UNIVERSAL E-COMMERCE EXTRACTOR V5.0")
-st.markdown("**Unique Descriptions | Bullet Specifications | Smart Title Generation | Variations Fixed**")
+st.set_page_config(page_title="Universal E-commerce Extractor V5.1", page_icon="🛒")
+st.title("🛒 UNIVERSAL E-COMMERCE EXTRACTOR V5.1 (AI DESCRIPTIONS)")
+st.markdown("**Gemini AI for Unique Descriptions | Smart Titles | Variations Fixed**")
 
 st.components.v1.html("""
 <script>
@@ -61,7 +61,7 @@ st.components.v1.html("""
 """, height=0)
 
 # ============================================================
-# BRANDING STUDIO UI (PURANA WAISA HI)
+# BRANDING STUDIO UI
 # ============================================================
 st.subheader("🎨 Branding Studio (Optional)")
 with st.expander("⚙️ Configure Image Branding", expanded=True):
@@ -98,7 +98,7 @@ with st.expander("⚙️ Configure Image Branding", expanded=True):
         st.checkbox("✨ Brightness/Contrast Tweak", key="enable_enhance", value=True)
 
 # ============================================================
-# SMART TITLE GENERATOR (NEW)
+# CONTENT SETTINGS (WITH GEMINI AI TOGGLE)
 # ============================================================
 st.subheader("📝 Content Settings")
 with st.expander("⚙️ Configure Product Content", expanded=True):
@@ -108,14 +108,32 @@ with st.expander("⚙️ Configure Product Content", expanded=True):
                       placeholder="e.g. Premium leather jackets store, target audience: men & women 20-45",
                       height=80)
         
-        # 🔥 NEW TOGGLE: Smart Title Generation
         st.checkbox("✨ Auto-Generate Unique Product Title (from specs + material + color)", 
-                    key="smart_title_enabled", value=True,
-                    help="ON: Tool will create unique titles like 'Sheepskin Waxed Biker Jacket - Black' using specs, material, color.\nOFF: Original product title as-is.")
+                    key="smart_title_enabled", value=True)
     
     with col_ct2:
         st.slider("🖼️ Max Gallery Images per Product", 3, 20, 10, key="max_gallery_images")
-        st.caption("💡 Descriptions & SEO content locally generated with variety (no repetition).")
+    
+    # ============================================================
+    # 🔥 NEW: GEMINI AI TOGGLE + API KEY
+    # ============================================================
+    st.markdown("---")
+    st.checkbox("🚀 AI-Powered Descriptions (Google Gemini — Free Tier)", key="ai_enabled", value=False,
+                help="Enabled: Uses Gemini to write unique, SEO-optimized descriptions. Disabled: Uses local rewriter.")
+    
+    if st.session_state.get("ai_enabled", False):
+        col_key1, col_key2 = st.columns([2, 1])
+        with col_key1:
+            st.text_input("🔑 Gemini API Key", type="password", key="gemini_api_key",
+                          help="Get your free key from https://aistudio.google.com/apikey")
+        with col_key2:
+            st.selectbox("Model", ["gemini-1.5-flash", "gemini-1.5-pro"], key="gemini_model",
+                         help="Flash = faster, Pro = better quality (slightly slower)")
+        st.caption("⚠️ Free tier has rate limits (60 requests/min). Tool will auto-fallback to local rewriter if AI fails.")
+    else:
+        # Clear API key from session if toggle is off
+        if 'gemini_api_key' in st.session_state:
+            st.session_state.gemini_api_key = ""
 
 # ============================================================
 # MAIN INPUTS
@@ -177,14 +195,17 @@ def get_branding_config():
         'store_context': st.session_state.get("ai_store_context", ""),
         'export_format': 'woocommerce' if st.session_state.get("export_format", "🛍️ Shopify CSV").startswith("🛒") else 'shopify',
         'smart_title_enabled': st.session_state.get("smart_title_enabled", True),
+        # AI Settings
+        'ai_enabled': st.session_state.get("ai_enabled", False),
+        'gemini_api_key': st.session_state.get("gemini_api_key", "").strip(),
+        'gemini_model': st.session_state.get("gemini_model", "gemini-1.5-flash"),
     }
 
 # ============================================================
-# SMART REWRITER (UPGRADED: UNIQUE DESCRIPTIONS + BULLET SPECS)
+# SMART REWRITER (LOCAL FALLBACK + BULLET SPECS)
 # ============================================================
 class SmartRewriter:
     def __init__(self):
-        # Multiple hooks — har product ke liye alag choose hoga
         self.hook_pool = [
             ("Meet the {title} — ", "a piece that redefines what {category} should feel like."),
             ("Say hello to the {title}, ", "where quality meets everyday functionality."),
@@ -197,7 +218,6 @@ class SmartRewriter:
             ("The {title} isn't just another {category}; ", "it's the one you'll reach for time and again."),
             ("Get to know the {title}, ", "crafted to look good, feel great, and last through every season."),
         ]
-        
         self.benefit_pool = [
             "designed with your comfort in mind from the very first wear",
             "built to handle everyday life without losing its shape or charm",
@@ -208,7 +228,6 @@ class SmartRewriter:
             "built to last and engineered to perform",
             "designed for real life — not just the showroom",
         ]
-        
         self.feature_pool = [
             "Premium materials chosen for comfort and long-lasting wear",
             "Thoughtful construction that holds its shape use after use",
@@ -223,7 +242,6 @@ class SmartRewriter:
             "Precision engineering for lasting durability",
             "Premium hardware and closures for reliable everyday use",
         ]
-        
         self.cta_pool = [
             "If you've been searching for something reliable and good-looking, this is worth adding to your cart.",
             "We think you'll love how it feels the moment you try it — go ahead and make it yours.",
@@ -234,7 +252,6 @@ class SmartRewriter:
             "Take it home and see the difference quality makes.",
             "Experience the difference for yourself — order now and feel the quality.",
         ]
-        
         self.seo_hooks = [
             "Shop the {title} today.",
             "Order your {title} now.",
@@ -245,23 +262,19 @@ class SmartRewriter:
             "Get the {title} at the best price.",
             "Find your perfect {title} here.",
         ]
-        
         self.used_hooks = []
         self.used_ctas = []
         self.used_seo = []
         self.used_features = []
 
     def _get_unique(self, pool, used_list, max_attempts=20):
-        """Har product ke liye unique item choose karo, agar pool khatam ho toh reset"""
-        if len(used_list) >= len(pool) * 0.7:  # 70% use ho chuke toh reset
+        if len(used_list) >= len(pool) * 0.7:
             used_list.clear()
-        
         for _ in range(max_attempts):
             item = random.choice(pool)
             if item not in used_list:
                 used_list.append(item)
                 return item
-        # Fallback
         item = random.choice(pool)
         used_list.append(item)
         return item
@@ -286,7 +299,6 @@ class SmartRewriter:
             'collar', 'sleeve', 'fit', 'style', 'men', 'women', 'unisex', 'black',
             'brown', 'tan', 'maroon', 'red', 'blue', 'green', 'grey', 'white'
         }
-        
         sentences = re.split(r'(?<=[.!?]) +', text)
         new_sentences = []
         for sent in sentences:
@@ -307,88 +319,60 @@ class SmartRewriter:
         return ' '.join(new_sentences).strip()
 
     def _format_specs_as_bullets(self, specs_text, title):
-        """Extract specifications and format as bullet points"""
         if not specs_text or len(specs_text.strip()) < 10:
             return []
-        
-        # Check if already has bullet-like structure
         if '<li>' in specs_text or '•' in specs_text or re.search(r'\n\s*[-•]', specs_text):
-            # Already has bullets, just clean and return
             cleaned = re.sub(r'<[^<]+?>', ' ', specs_text)
             items = re.split(r'\n\s*[-•]\s*', cleaned)
             items = [i.strip() for i in items if i.strip()]
             if items:
                 return items
-        
-        # Split by common separators
         separators = r'\n|;|,\.\s*|•|\*'
         items = re.split(separators, specs_text)
         items = [i.strip() for i in items if i.strip() and len(i.strip()) > 5]
-        
-        # If still too few, try to extract key-value pairs
         if len(items) < 3:
-            # Look for "Key: Value" patterns
             kv_pattern = re.compile(r'([A-Za-z\s]+):\s*([^,;\n]+)')
             matches = kv_pattern.findall(specs_text)
             if matches:
                 items = [f"{k.strip()}: {v.strip()}" for k, v in matches]
-        
-        return items[:8]  # Max 8 spec items
+        return items[:8]
 
     def generate_seo_content(self, title, raw_desc, category=None, store_context=None, specs_text=None):
-        """Generate UNIQUE content with bullet point specifications"""
-        
-        # ===== UNIQUE HOOK =====
+        # Local fallback logic (same as V5.0)
         hook_template, hook_benefit = self._get_unique(self.hook_pool, self.used_hooks)
         hook = hook_template.format(title=title)
         benefit = hook_benefit.format(category=category or 'piece')
-        
         niche_line = f" Perfect for shoppers who care about {store_context.strip().rstrip('.')}." if store_context else ""
         intro = f"{hook}{benefit}.{niche_line}"
         
-        # ===== PROCESS SPECIFICATIONS =====
         spec_items = self._format_specs_as_bullets(specs_text or raw_desc, title)
-        
-        # ===== FEATURES (unique pool se) =====
         num_features = random.randint(3, 5)
         features = []
         for _ in range(num_features):
-            f = self._get_unique(self.feature_pool, self.used_features)
-            features.append(f)
-        
+            features.append(self._get_unique(self.feature_pool, self.used_features))
         if category:
             features.append(f"Thoughtfully categorized under {category.split('>')[-1].strip()}")
         
-        # ===== COMBINE FEATURES + SPECS =====
-        all_bullets = []
-        all_bullets.extend(spec_items[:4])  # Pehle 4 specs
-        all_bullets.extend(features)  # Phir features
-        
+        all_bullets = spec_items[:4] + features
         feature_html = ''.join(f"<li>{item}</li>" for item in all_bullets[:8])
-        
-        # ===== UNIQUE CTA =====
         cta = self._get_unique(self.cta_pool, self.used_ctas)
         
-        # ===== BUILD DESCRIPTION =====
         parts = [f"<p>{intro}</p>"]
         if spec_items:
             parts.append(f"<ul>{feature_html}</ul>")
         parts.append(f"<p>{cta}</p>")
         description_html = ''.join(parts)
         
-        # ===== SEO TITLE (UNIQUE) =====
         seo_hook = self._get_unique(self.seo_hooks, self.used_seo)
         seo_title = f"{title} — {seo_hook.format(title=title)}"
         if len(seo_title) > 60:
             seo_title = seo_title[:57] + '...'
         
-        # ===== SEO DESCRIPTION =====
         plain_intro = re.sub(r'<[^<]+?>', ' ', intro)[:120]
         seo_description = f"{plain_intro} Discover the {title} collection today."
         if len(seo_description) > 160:
             seo_description = seo_description[:157] + '...'
         
-        # ===== SHORT DESCRIPTION =====
         short_desc = plain_intro[:100]
         if len(short_desc) > 100:
             short_desc = short_desc[:97] + '...'
@@ -402,7 +386,133 @@ class SmartRewriter:
         }
 
 # ============================================================
-# EXTRACTORS (Platform-agnostic)
+# 🔥 GEMINI AI DESCRIPTION GENERATOR
+# ============================================================
+def generate_ai_description_gemini(title, specs, category, store_context, api_key, model_name):
+    """Call Gemini API to generate unique, SEO-optimized description with bullet points."""
+    if not api_key or not title:
+        return None
+    
+    # Build prompt
+    prompt = f"""You are an expert e-commerce copywriter for a store: {store_context if store_context else 'Premium Products'}.
+Write a unique, compelling, and SEO-optimized description for the product: "{title}".
+Category: {category}
+Details/Specifications: {specs}
+
+Your response MUST be in EXACTLY this format with these headers on separate lines:
+
+### SEO TITLE
+[Write a catchy SEO title max 60 characters]
+
+### SHORT DESCRIPTION
+[Write a short description max 200 characters]
+
+### LONG DESCRIPTION
+[Write a long, sales-focused description. Use <ul><li> bullet points for features/specs. Use <p> for paragraphs. Make it professional and unique.]
+
+### META DESCRIPTION
+[Write a meta description max 160 characters]
+
+Make sure the content is original, flows naturally, and persuades the customer to buy.
+"""
+    
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}"
+    
+    payload = {
+        "contents": [{
+            "parts": [{"text": prompt}]
+        }],
+        "generationConfig": {
+            "temperature": 0.8,
+            "maxOutputTokens": 1024,
+            "topP": 0.95
+        }
+    }
+    
+    try:
+        response = requests.post(url, json=payload, timeout=30)
+        if response.status_code == 200:
+            data = response.json()
+            try:
+                text = data['candidates'][0]['content']['parts'][0]['text']
+                return parse_ai_response(text, title)
+            except (KeyError, IndexError):
+                return None
+        else:
+            # Rate limit or error
+            return None
+    except Exception:
+        return None
+
+def parse_ai_response(text, fallback_title):
+    """Parse the structured AI response into a dictionary."""
+    result = {
+        'seo_title': f"{fallback_title} — Premium Quality",
+        'short_description': '',
+        'description_html': '',
+        'seo_description': ''
+    }
+    
+    # Simple parsing using headers
+    sections = {
+        '### SEO TITLE': 'seo_title',
+        '### SHORT DESCRIPTION': 'short_description',
+        '### LONG DESCRIPTION': 'description_html',
+        '### META DESCRIPTION': 'seo_description'
+    }
+    
+    current_section = None
+    current_content = []
+    
+    for line in text.split('\n'):
+        line = line.strip()
+        if line in sections:
+            # Save previous section
+            if current_section and current_content:
+                clean_content = ' '.join(current_content).strip()
+                result[sections[current_section]] = clean_content
+            current_section = line
+            current_content = []
+        elif current_section:
+            current_content.append(line)
+    
+    # Save last section
+    if current_section and current_content:
+        clean_content = ' '.join(current_content).strip()
+        if current_section in sections:
+            result[sections[current_section]] = clean_content
+    
+    # Fallback: Ensure long description has HTML paragraphs if missing
+    if result['description_html'] and not '<p>' in result['description_html'] and not '<ul>' in result['description_html']:
+        # Try to split into paragraphs
+        paragraphs = result['description_html'].split('\n\n')
+        html_parts = []
+        for p in paragraphs:
+            p = p.strip()
+            if p:
+                # Check if it contains bullet-like patterns
+                if '•' in p or '-' in p:
+                    items = [i.strip() for i in re.split(r'[•\-]\s*', p) if i.strip()]
+                    if items:
+                        html_parts.append('<ul><li>' + '</li><li>'.join(items) + '</li></ul>')
+                    else:
+                        html_parts.append(f"<p>{p}</p>")
+                else:
+                    html_parts.append(f"<p>{p}</p>")
+        result['description_html'] = ''.join(html_parts)
+    
+    # Truncate lengths
+    if len(result['seo_title']) > 70:
+        result['seo_title'] = result['seo_title'][:67] + '...'
+    if len(result['seo_description']) > 165:
+        result['seo_description'] = result['seo_description'][:162] + '...'
+    if len(result['short_description']) > 250:
+        result['short_description'] = result['short_description'][:247] + '...'
+    
+    return result
+
+# ============================================================
+# EXTRACTORS
 # ============================================================
 def safe_get_offer_price(offers):
     if isinstance(offers, dict): return offers.get('price', '')
@@ -609,17 +719,13 @@ def extract_vendor(soup, product_data, default="Imported Vendor"):
     return default
 
 # ============================================================
-# 🔥 NEW: SMART TITLE GENERATOR
+# SMART TITLE GENERATOR
 # ============================================================
 def generate_smart_title(original_title, specs_text, color=None, material=None):
-    """Generate unique product title from specs + material + color (size excluded)"""
     if not specs_text:
         return original_title
     
-    # Extract key specs
     specs_lower = specs_text.lower()
-    
-    # Find material
     materials = ['leather', 'sheepskin', 'goatskin', 'cowhide', 'suede', 'nubuck', 
                  'canvas', 'denim', 'wool', 'polyester', 'nylon', 'cotton', 'hemp']
     detected_material = ''
@@ -628,7 +734,6 @@ def generate_smart_title(original_title, specs_text, color=None, material=None):
             detected_material = mat.capitalize()
             break
     
-    # Find finish
     finish_types = ['waxed', 'pull-up', 'semi-aniline', 'aniline', 'distressed', 
                     'vintage', 'washed', 'oiled', 'matte', 'glossy']
     detected_finish = ''
@@ -637,7 +742,6 @@ def generate_smart_title(original_title, specs_text, color=None, material=None):
             detected_finish = fin.capitalize()
             break
     
-    # Find color
     colors = ['black', 'brown', 'tan', 'maroon', 'red', 'blue', 'green', 'grey', 
               'white', 'charcoal', 'navy', 'olive', 'camel', 'chestnut', 'mahogany']
     detected_color = ''
@@ -646,29 +750,19 @@ def generate_smart_title(original_title, specs_text, color=None, material=None):
             detected_color = col.capitalize()
             break
     
-    # Build title parts (exclude size intentionally)
     title_parts = []
-    
-    # Add finish if found
     if detected_finish:
         title_parts.append(detected_finish)
-    
-    # Add material if found
     if detected_material:
         title_parts.append(detected_material)
     
-    # Extract core name (remove color/size/material from original)
     core_name = original_title
-    # Remove detected color
     if detected_color and detected_color.lower() in core_name.lower():
         core_name = re.sub(re.escape(detected_color), '', core_name, flags=re.I).strip()
-    # Remove detected material
     if detected_material and detected_material.lower() in core_name.lower():
         core_name = re.sub(re.escape(detected_material), '', core_name, flags=re.I).strip()
-    # Remove finish
     if detected_finish and detected_finish.lower() in core_name.lower():
         core_name = re.sub(re.escape(detected_finish), '', core_name, flags=re.I).strip()
-    # Clean up extra spaces and hyphens
     core_name = re.sub(r'\s+', ' ', core_name).strip()
     core_name = re.sub(r'-\s*', '-', core_name)
     
@@ -677,18 +771,13 @@ def generate_smart_title(original_title, specs_text, color=None, material=None):
     else:
         title_parts.append(original_title)
     
-    # Add color if found (but only if not already in title)
     if detected_color and detected_color.lower() not in ' '.join(title_parts).lower():
         title_parts.append(detected_color)
     
-    # Join with hyphens
     smart_title = ' - '.join(title_parts)
-    
-    # Clean up: remove multiple spaces/hyphens
     smart_title = re.sub(r'\s+', ' ', smart_title).strip()
     smart_title = re.sub(r'-\s*-\s*', '-', smart_title)
     
-    # If too long, keep it reasonable
     if len(smart_title) > 80:
         smart_title = smart_title[:77] + '...'
     
@@ -846,7 +935,7 @@ def collect_gallery_images(url, soup, base_url_domain, session, headers, product
     return final
 
 # ============================================================
-# IMAGE EDITOR (PURANA, BACKGROUND REMOVED)
+# IMAGE EDITOR
 # ============================================================
 def edit_image(img_data, filename, config):
     try:
@@ -986,7 +1075,7 @@ def edit_image(img_data, filename, config):
             return None, None
 
 # ============================================================
-# MAIN SCRAPER (FIXED: VARIATIONS + SMART TITLE + UNIQUE CONTENT)
+# MAIN SCRAPER (INTEGRATED WITH AI)
 # ============================================================
 def scrape_product(url, session, config):
     headers = {'User-Agent': random.choice(USER_AGENTS)}
@@ -1034,7 +1123,6 @@ def scrape_product(url, session, config):
         if product_data:
             break
 
-    # ----- EXTRACT DATA -----
     original_title = extract_title(soup, product_data, url)
     raw_desc = extract_raw_description(soup, product_data) or original_title
     category_str = format_category(soup, product_data, original_title)
@@ -1042,49 +1130,59 @@ def scrape_product(url, session, config):
     sku_raw = extract_sku(soup, product_data)
     vendor = extract_vendor(soup, product_data)
     
-    # ----- EXTRACT SPECIFICATIONS (for bullet points & smart title) -----
     specs_text = raw_desc
-    # Try to find a specs/attributes section
     specs_section = soup.find(['div', 'ul', 'table'], {'class': re.compile(r'spec|attribute|detail|features', re.I)})
     if specs_section:
         specs_text = specs_section.get_text(' ', strip=True)
     
-    # ----- EXTRACT COLOR & MATERIAL -----
+    # Extract color & material for smart title
     color = ''
     material = ''
-    # Look for color in product data
     if product_data.get('color'):
         color = product_data.get('color')
     else:
         color_match = re.search(r'color[:\s]+([a-zA-Z]+)', raw_desc, re.I)
         if color_match:
             color = color_match.group(1).capitalize()
-    
-    # Look for material
     materials = ['leather', 'sheepskin', 'goatskin', 'cowhide', 'suede', 'nubuck', 'canvas', 'denim', 'wool']
     for mat in materials:
         if mat in raw_desc.lower():
             material = mat.capitalize()
             break
-    
-    # ----- SMART TITLE GENERATION (TOGGLE) -----
+
+    # Smart Title
     if config.get('smart_title_enabled', True):
         title = generate_smart_title(original_title, specs_text, color, material)
     else:
         title = original_title
 
-    # ----- GENERATE UNIQUE CONTENT -----
+    # ---------- AI GENERATION (New) ----------
+    ai_content = None
+    if config.get('ai_enabled', False) and config.get('gemini_api_key'):
+        ai_content = generate_ai_description_gemini(
+            title,
+            specs_text,
+            category_str,
+            config.get('store_context', ''),
+            config.get('gemini_api_key'),
+            config.get('gemini_model', 'gemini-1.5-flash')
+        )
+    
+    # Use AI content if available, else local rewriter
     rewriter = SmartRewriter()
-    seo_content = rewriter.generate_seo_content(
-        title, raw_desc, category_str, config.get('store_context', ''), specs_text
-    )
+    if ai_content:
+        seo_title = ai_content.get('seo_title', f"{title} — Premium Quality")
+        long_desc = ai_content.get('description_html', f"<p>{title} - Premium quality product.</p>")
+        gen_seo_description = ai_content.get('seo_description', f"Shop {title} today.")
+        gen_short_desc = ai_content.get('short_description', f"Discover the {title}.")
+    else:
+        local_content = rewriter.generate_seo_content(title, raw_desc, category_str, config.get('store_context', ''), specs_text)
+        seo_title = local_content['seo_title']
+        long_desc = local_content['description_html']
+        gen_seo_description = local_content['seo_description']
+        gen_short_desc = local_content['short_description']
 
-    long_desc = seo_content['description_html']
-    gen_seo_title = seo_content['seo_title']
-    gen_seo_description = seo_content['seo_description']
-    gen_short_desc = seo_content['short_description']
-
-    # ----- GENERATE SKU -----
+    # ----- SKU -----
     rand_suffix = ''.join(random.choices('ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789', k=4))
     parent_sku = f"CUSTOM-{rand_suffix}-{sku_raw}"
 
@@ -1094,7 +1192,6 @@ def scrape_product(url, session, config):
         url, soup, base_url_domain, session, headers, product_data, max_images
     )
 
-    # Process images
     image_zip_data = {}
     processed_image_urls = []
     
@@ -1122,7 +1219,7 @@ def scrape_product(url, session, config):
     tags = "Imported"
     handle = generate_handle(title)
     
-    # ----- EXTRACT VARIANTS (FIXED: SIZE + COLOR) -----
+    # ----- VARIATIONS -----
     offers = product_data.get('offers')
     variations_data = []
     
@@ -1132,27 +1229,15 @@ def scrape_product(url, session, config):
                 var_sku = offer.get('sku', f'VAR-{len(variations_data)+1}')
                 var_price = offer.get('price', price)
                 var_attrs = {}
-                
-                # Extract attributes
                 if 'size' in offer:
                     var_attrs['Size'] = offer['size']
                 if 'color' in offer:
                     var_attrs['Color'] = offer['color']
                 if 'material' in offer:
                     var_attrs['Material'] = offer['material']
-                
-                # Also try from offers[0] if attributes are in the root
-                if not var_attrs and len(variations_data) == 0 and 'size' in product_data:
-                    var_attrs['Size'] = product_data.get('size')
-                if not var_attrs and len(variations_data) == 0 and 'color' in product_data:
-                    var_attrs['Color'] = product_data.get('color')
-                
                 if not var_attrs:
                     var_attrs['Option'] = f'Variant {len(variations_data)+1}'
-                
-                # Try to get variant image
                 var_img = offer.get('image', '')
-                
                 variations_data.append({
                     'sku': var_sku,
                     'price': var_price,
@@ -1160,11 +1245,6 @@ def scrape_product(url, session, config):
                     'image': var_img
                 })
 
-    # If no variations found, treat as simple product
-    if not variations_data:
-        variations_data = []
-
-    # ----- OPTION NAMES -----
     opt1_name = opt2_name = opt3_name = ''
     if variations_data:
         attr_names = set()
@@ -1175,7 +1255,7 @@ def scrape_product(url, session, config):
         if len(attr_names) > 1: opt2_name = attr_names[1]
         if len(attr_names) > 2: opt3_name = attr_names[2]
 
-    # ----- PARENT ROW -----
+    # Parent Row
     parent_row = {
         'Title': title,
         'URL handle': handle,
@@ -1218,7 +1298,7 @@ def scrape_product(url, session, config):
         'Image alt text': title,
         'Variant image URL': '',
         'Gift card': 'FALSE',
-        'SEO title': gen_seo_title,
+        'SEO title': seo_title,
         'SEO description': gen_seo_description,
         'Short description': gen_short_desc,
         'Color (product.metafields.shopify.color-pattern)': '',
@@ -1237,7 +1317,7 @@ def scrape_product(url, session, config):
         'Google Shopping / Custom label 4': ''
     }
 
-    # ----- ADDITIONAL IMAGE ROWS -----
+    # Additional Image Rows
     image_rows = []
     for idx, img_url in enumerate(additional_images, start=2):
         img_row = {col: '' for col in SHOPIFY_COLUMNS}
@@ -1246,7 +1326,7 @@ def scrape_product(url, session, config):
         img_row['Image position'] = str(idx)
         image_rows.append(img_row)
 
-    # ----- VARIANT ROWS -----
+    # Variant Rows
     variant_rows = []
     if variations_data:
         for idx, var in enumerate(variations_data):
@@ -1257,7 +1337,6 @@ def scrape_product(url, session, config):
             attr2_val = list(var_attrs.values())[1] if len(var_attrs) > 1 else ''
             attr3_val = list(var_attrs.values())[2] if len(var_attrs) > 2 else ''
 
-            # Variant image
             var_img = var.get('image', '')
             var_img_url = ''
             if config.get('edit_images', False) and var_img:
@@ -1334,7 +1413,6 @@ def scrape_product(url, session, config):
             }
             variant_rows.append(variant_row)
     
-    # If no variations, simple product
     if not variations_data:
         parent_row['SKU'] = parent_sku
         parent_row['Price'] = price
@@ -1702,4 +1780,4 @@ if st.session_state.is_ready:
                         st.session_state[key] = None
             st.rerun()
 
-st.caption("🛒 V5.0 | Smart Titles | Unique Descriptions | Bullet Specs | Variations Fixed | 1000 MB ZIP Limit")
+st.caption("🛒 V5.1 | Gemini AI Descriptions (Toggle) | Smart Titles | Bullet Specs | Variations Fixed | 1000 MB ZIP Limit")
